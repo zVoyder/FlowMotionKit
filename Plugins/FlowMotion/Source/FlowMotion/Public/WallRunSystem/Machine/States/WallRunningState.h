@@ -6,6 +6,8 @@
 #include "WallRunStateBase.h"
 #include "WallRunningState.generated.h"
 
+constexpr float TraceDistanceMultiplier = 1.5f;
+
 UCLASS()
 class FLOWMOTION_API UWallRunningState : public UWallRunStateBase
 {
@@ -13,16 +15,16 @@ class FLOWMOTION_API UWallRunningState : public UWallRunStateBase
 
 private:
 	UPROPERTY()
-	UCharacterMovementComponent* MovementComponent;
-	UPROPERTY()
 	UCurveFloat* GravityCurve;
-	float OriginalGravityScale;
-	bool bOriginalOrientRotationToMovement;
+	UPROPERTY()
+	UCurveVector* SpeedAccelerationCurve;
 	float ElapsedTime = 0.f;
-	
-protected:
-	virtual void OnAdded(UMotionMachine* InMachine) override;
+	float ContactSpeed = 0.f;
+	float ContactAcceleration = 0.f;
+	bool bUseGravityCurve = false;
+	bool bUseSpeedAccelerationCurve = false;
 
+protected:
 	virtual void OnEnter() override;
 
 	virtual void OnProcess(float DeltaTime) override;
@@ -32,15 +34,17 @@ protected:
 	virtual void OnAbort() override;
 
 private:
-	void RotateCharacterAlongWall(const float DeltaTime, const FRotator& WallOrientation) const;
+	bool HasWallOnSide() const;
+
+	bool HasSufficientSpeedToKeepRunning() const;
 	
-	void MoveCharacterAlongWall(const float DeltaTime, const FHitResult& HitResult, const FRotator& WallOrientation) const;
+	void SetGravity();
 
 	void ScaleGravityWithCurve() const;
-	
-	void SetGravityCurve();
-	
-	FRotator GetWallOrientation(const bool bIsRight, const FHitResult& HitResult) const;
 
-	void ResetMovementComponent() const;
+	void SetSpeedAcceleration();
+
+	void ScaleSpeedAccelerationWithCurve() const;
+
+	void LaunchCharacterOffWall() const;
 };

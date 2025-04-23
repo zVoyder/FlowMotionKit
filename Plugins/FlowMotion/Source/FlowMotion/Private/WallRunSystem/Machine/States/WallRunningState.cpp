@@ -1,126 +1,195 @@
 ﻿// Copyright VUEDK, Inc. All Rights Reserved.
 
 #include "WallRunSystem/Machine/States/WallRunningState.h"
-
-void UWallRunningState::OnAdded(UMotionMachine* InMachine)
-{
-	Super::OnAdded(InMachine);
-	MovementComponent = GetWallRunContext()->MovementComponent;
-}
+#include "FlowMotion.h"
 
 void UWallRunningState::OnEnter()
 {
 	Super::OnEnter();
-
 	ElapsedTime = 0.f;
-	OriginalGravityScale = MovementComponent->GravityScale;
-	bOriginalOrientRotationToMovement = MovementComponent->bOrientRotationToMovement;
-	MovementComponent->bOrientRotationToMovement = false;
 
-	SetGravityCurve();
-	const FVector& HorVelocity = GetWallRunContext()->StartUpHorVelocity;
-	MovementComponent->Velocity = HorVelocity; // Set vertical velocity to zero
+	SetGravity();
+	SetSpeedAcceleration();
 }
 
 void UWallRunningState::OnProcess(float DeltaTime)
 {
 	Super::OnProcess(DeltaTime);
 	ElapsedTime += DeltaTime;
-	
-	UWallRunContext* Context = GetWallRunContext();
-	if (!Context->Runner->WantsToAttach())
-	{
-		TransitionTo(FallingStateName);
-		return;
-	}
 
-	const float& MinVelocity = Context->MovementComponent->Velocity.Length();
-	const bool& bCheckRight = Context->bLastWallIsRight;
-
-	FHitResult HitResult;
-	if (!Context->Runner->CheckAttachWall(MinVelocity, bCheckRight, HitResult, Context->LastWall))
-	{
-		TransitionTo(FallingStateName);
-		return;
-	}
-	
-	const FRotator WallOrientation = GetWallOrientation(bCheckRight, HitResult);
-	RotateCharacterAlongWall(DeltaTime, WallOrientation);
-	MoveCharacterAlongWall(DeltaTime, HitResult, WallOrientation);
 	ScaleGravityWithCurve();
+	ScaleSpeedAccelerationWithCurve();
+
+	const UWallRunContext* Context = GetWallRunContext();
+	const UWallRunner* Runner = Context->Runner;
+	if (!Runner->WantsToAttach())
+	{
+		LaunchCharacterOffWall();
+		TransitionTo(FallingStateName);
+		return;
+	}
+
+	if (!HasWallOnSide())
+	{
+		TransitionTo(FallingStateName);
+		return;
+	}
+
+	const FRotator WallOrientation = Runner->GetWallOrientation(Context->HitData);
+	Runner->RotateCharacterAlongWall(DeltaTime, WallOrientation);
+	const float Stickiness = Runner->GetStickinessStrength(Context->HitData.Wall);
+	Runner->MoveCharacterAlongWall(DeltaTime, Context->HitData.HitResult, WallOrientation, Stickiness);
+
+	if (ElapsedTime >= Runner->MinWallRunTime)
+	{
+		if (!HasSufficientSpeedToKeepRunning())
+		{
+			UE_LOG(LogFlowMotion, Warning, TEXT("WallRunningState::OnProcess: Insufficient speed."));
+			TransitionTo(FallingStateName);
+		}
+	}
 }
 
 void UWallRunningState::OnExit()
 {
 	Super::OnExit();
-	ResetMovementComponent();
 }
 
 void UWallRunningState::OnAbort()
 {
 	Super::OnAbort();
-	ResetMovementComponent();
+	GetWallRunContext()->Runner->ResetMovementComponentData(); // Safe call
 }
 
-void UWallRunningState::RotateCharacterAlongWall(const float DeltaTime, const FRotator& WallOrientation) const
+bool UWallRunningState::HasWallOnSide() const
 {
-	const FRotator CurrentRotation = GetWallRunContext()->Owner->GetActorRotation();
-	const FRotator InterpRotation = FMath::RInterpTo(CurrentRotation, WallOrientation, DeltaTime, 10.f);
-	GetWallRunContext()->Owner->SetActorRotation(InterpRotation);
+	UWallRunContext* Context = GetWallRunContext();
+	const AActor* Owner = Context->Owner;
+	const UWallRunner* Runner = Context->Runner;
+
+	if (!IsValid(Owner))
+		return false;
+
+	if (!Context->Runner->TryGetMostValidWallHit(Context->HitData))
+		return false;
+
+	const UWorld* World = Owner->GetWorld();
+
+	if (!IsValid(World))
+		return false;
+
+	const FVector TraceStartPoint = Runner->GetActorTraceLocation();
+	const FVector Direction = (Owner->GetActorRightVector() * (Context->HitData.bIsOnRight ? 1.f : -1.f)).GetSafeNormal();
+	const FVector TraceEndPoint = TraceStartPoint + Runner->CheckRadius * TraceDistanceMultiplier * Direction;
+
+	FHitResult HitResult;
+	World->LineTraceSingleByChannel(HitResult, TraceStartPoint, TraceEndPoint, Runner->TraceCheckChannel);
+	
+	return HitResult.bBlockingHit;
 }
 
-void UWallRunningState::MoveCharacterAlongWall(const float DeltaTime, const FHitResult& HitResult, const FRotator& WallOrientation) const
+bool UWallRunningState::HasSufficientSpeedToKeepRunning() const
 {
-	AActor* Owner = GetWallRunContext()->Owner;
-	const float& DesiredDistance = GetWallRunContext()->Runner->DesiredDistanceToWall;
+	const FVector HorizontalVelocity = FVector(
+		GetWallRunContext()->MovementComponent->Velocity.X,
+		GetWallRunContext()->MovementComponent->Velocity.Y,
+		0.f
+	);
 
-	const FVector ImpactNormal = HitResult.ImpactNormal.GetSafeNormal();
-	const FVector WallForward = WallOrientation.Vector();
-	const FVector WallNormal = -ImpactNormal.GetSafeNormal();
-	const FVector FinalDirection = (WallForward + WallNormal).GetSafeNormal();
+	return HorizontalVelocity.Length() > GetWallRunContext()->Runner->VelocityToDetach;
+}
 
-	MovementComponent->AddInputVector(FinalDirection);
-
-	const FVector ToWall = HitResult.ImpactPoint - Owner->GetActorLocation();
-	const float Distance = FVector::DotProduct(ToWall, ImpactNormal);
-	const FVector Correction = ImpactNormal * (Distance + DesiredDistance);
-	Owner->AddActorWorldOffset(Correction * DeltaTime, true);
+void UWallRunningState::SetGravity()
+{
+	const UWallRunner* Runner = GetWallRunContext()->Runner;
+	
+	if (!GetWallRunContext()->Runner->bUseGravityCurves)
+	{
+		bUseGravityCurve = false;
+		GetWallRunContext()->MovementComponent->GravityScale = Runner->DefaultGravityScale;
+		return;
+	}
+	
+	const URunnableWall* Wall = GetWallRunContext()->HitData.Wall;
+	if (Wall->HasWallGravityCurveOverride())
+	{
+		bUseGravityCurve = true;
+		GravityCurve = GetWallRunContext()->HitData.Wall->WallGravityCurveOverride;
+		return;
+	}
+	
+	GravityCurve = GetWallRunContext()->Runner->DefaultGravityMultiplierCurve;
+	if (IsValid(GravityCurve))
+		bUseGravityCurve = true;
 }
 
 void UWallRunningState::ScaleGravityWithCurve() const
 {
-	if (!IsValid(GravityCurve))
+	if (!bUseGravityCurve)
+		return;
+
+	const UWallRunner* Runner = GetWallRunContext()->Runner;
+	const float Mult = GravityCurve->GetFloatValue(ElapsedTime);
+
+	GetWallRunContext()->MovementComponent->GravityScale = Runner->GetOriginalGravityScale() * Mult;
+}
+
+void UWallRunningState::SetSpeedAcceleration()
+{
+	const UWallRunner* Runner = GetWallRunContext()->Runner;
+	
+	if (!GetWallRunContext()->Runner->bUseSpeedAccelerationCurves)
+	{
+		bUseSpeedAccelerationCurve = false;
+		GetWallRunContext()->MovementComponent->MaxWalkSpeed *= Runner->DefaultMaxSpeedScale;
+		GetWallRunContext()->MovementComponent->MaxAcceleration *= Runner->DefaultAccelerationScale;
+		return;
+	}
+
+	ContactSpeed = GetWallRunContext()->MovementComponent->MaxWalkSpeed;
+	ContactAcceleration = GetWallRunContext()->MovementComponent->MaxAcceleration;
+	const URunnableWall* Wall = GetWallRunContext()->HitData.Wall;
+	if (Wall->HasWallSpeedAccelerationCurveOverride())
+	{
+		bUseSpeedAccelerationCurve = true;
+		SpeedAccelerationCurve = GetWallRunContext()->HitData.Wall->WallSpeedAccelerationCurveOverride;
+		return;
+	}
+
+	SpeedAccelerationCurve = GetWallRunContext()->Runner->DefaultSpeedAccelerationCurve;
+	if (IsValid(SpeedAccelerationCurve))
+		bUseSpeedAccelerationCurve = true;
+}
+
+void UWallRunningState::ScaleSpeedAccelerationWithCurve() const
+{
+	if (!bUseSpeedAccelerationCurve)
 		return;
 	
-	const float Mult = GravityCurve->GetFloatValue(ElapsedTime);
-	MovementComponent->GravityScale = OriginalGravityScale * Mult;
-}
-
-void UWallRunningState::SetGravityCurve()
-{
-	GravityCurve = GetWallRunContext()->LastWall->WallGravityMultiplierCurve;
+	const UWallRunner* Runner = GetWallRunContext()->Runner;
+	const float SpeedMult = SpeedAccelerationCurve->GetVectorValue(ElapsedTime).X;
+	const float AccelerationMult = SpeedAccelerationCurve->GetVectorValue(ElapsedTime).Y;
 	
-	if (!IsValid(GravityCurve))
-		GravityCurve = GetWallRunContext()->Runner->DefaultGravityMultiplierCurve;
+	GetWallRunContext()->MovementComponent->MaxWalkSpeed = ContactSpeed * SpeedMult;
+	GetWallRunContext()->MovementComponent->MaxAcceleration = ContactAcceleration * AccelerationMult;
 }
 
-FRotator UWallRunningState::GetWallOrientation(const bool bIsRight, const FHitResult& HitResult) const
+void UWallRunningState::LaunchCharacterOffWall() const
 {
-	const AActor* Owner = GetWallRunContext()->Owner;
-	const FVector ImpactNormal = HitResult.ImpactNormal.GetSafeNormal();
-	FVector WallForward =
-		bIsRight
-			? FVector::CrossProduct(Owner->GetActorUpVector(), ImpactNormal).GetSafeNormal()
-			: FVector::CrossProduct(ImpactNormal, Owner->GetActorUpVector()).GetSafeNormal();
+	const UWallRunContext* Context = GetWallRunContext();
+	const UWallRunner* Runner = Context->Runner;
+	const UCharacterMovementComponent* MovementComponent = Context->MovementComponent;
 
-	if (WallForward.IsNearlyZero())
-		WallForward = Owner->GetActorForwardVector(); // fallback
+	if (!IsValid(Runner) || !IsValid(MovementComponent))
+		return;
 
-	return FRotationMatrix::MakeFromXZ(WallForward, Owner->GetActorUpVector()).Rotator();
-}
+	const FVector ImpactNormal = Context->HitData.HitResult.ImpactNormal.GetSafeNormal();
+	const FVector WallForward = Runner->GetWallOrientation(Context->HitData).Vector();
 
-void UWallRunningState::ResetMovementComponent() const
-{
-	MovementComponent->bOrientRotationToMovement = bOriginalOrientRotationToMovement;
-	MovementComponent->GravityScale = OriginalGravityScale;
+	const FVector CurrentVelocity = MovementComponent->Velocity;
+	const FVector HorizontalVelocity = FVector(CurrentVelocity.X, CurrentVelocity.Y, 0.f);
+	const FVector ForwardMomentum = WallForward * HorizontalVelocity.Size() * Runner->ForwardLaunchScale;
+
+	const FVector LaunchVector = (ImpactNormal * Runner->HorizontalLaunchBoost) + (FVector::UpVector * Runner->VerticalLaunchBoost) + ForwardMomentum;
+	Context->MovementComponent->Launch(LaunchVector);
 }

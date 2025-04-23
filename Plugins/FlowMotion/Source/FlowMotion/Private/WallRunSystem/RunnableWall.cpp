@@ -2,7 +2,26 @@
 
 #include "WallRunSystem/RunnableWall.h"
 
-URunnableWall::URunnableWall(): WallGravityMultiplierCurve(nullptr)
+URunnableWall::URunnableWall(): WallGravityCurveOverride(nullptr),
+                                WallSpeedAccelerationCurveOverride(nullptr),
+                                bOverrideWallGravityCurve(false),
+                                bOverrideWallSpeedAccelerationCurve(false),
+                                bOverrideStickinessStrength(false)
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
+
+bool URunnableWall::HasWallSpeedAccelerationCurveOverride() const
+{
+	return bOverrideWallSpeedAccelerationCurve && IsValid(WallSpeedAccelerationCurveOverride);
+}
+
+bool URunnableWall::HasWallGravityCurveOverride() const
+{
+	return bOverrideWallGravityCurve && IsValid(WallGravityCurveOverride);
+}
+
+bool URunnableWall::HasStickinessStrengthOverride() const
+{
+	return bOverrideStickinessStrength;
 }

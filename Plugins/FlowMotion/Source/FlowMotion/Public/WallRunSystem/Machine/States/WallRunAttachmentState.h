@@ -4,22 +4,23 @@
 
 #include "CoreMinimal.h"
 #include "WallRunStateBase.h"
-#include "WallRunCheckState.generated.h"
+#include "WallRunAttachmentState.generated.h"
 
 UCLASS()
-class FLOWMOTION_API UWallRunCheckState : public UWallRunStateBase
+class FLOWMOTION_API UWallRunAttachmentState : public UWallRunStateBase
 {
 	GENERATED_BODY()
 
+private:
+	float ElapsedTime = 0.f;
+	
 protected:
 	virtual void OnEnter() override;
 
 	virtual void OnProcess(float DeltaTime) override;
-
-	virtual void OnExit() override;
+	
+	virtual void OnAbort() override;
 
 private:
-	bool CanAttachToWall(const FWallHitData& WallHitData) const;
-	
-	bool HasSufficientSpeedToAttach() const;
+	void SetVerticalVelocity(const float ZVelocity = 0.f) const;
 };

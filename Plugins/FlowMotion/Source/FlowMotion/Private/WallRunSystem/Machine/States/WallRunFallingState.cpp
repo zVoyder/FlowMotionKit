@@ -6,6 +6,7 @@ void UWallRunFallingState::OnEnter()
 {
 	Super::OnEnter();
 	Timer = 0.f;
+	GetWallRunContext()->Runner->ResetMovementComponentData();
 }
 
 void UWallRunFallingState::OnProcess(float DeltaTime)
@@ -13,13 +14,11 @@ void UWallRunFallingState::OnProcess(float DeltaTime)
 	Super::OnProcess(DeltaTime);
 	Timer += DeltaTime;
 	
-	if (Timer >= GetWallRunContext()->Runner->TimeBeforeAttach)
+	if (Timer >= GetWallRunContext()->Runner->AttachInputDelay)
 		TransitionTo(InputStateName);
 }
 
 void UWallRunFallingState::OnExit()
 {
 	Super::OnExit();
-	const UCharacterMovementComponent* MovementComponent = GetWallRunContext()->MovementComponent;
-	GetWallRunContext()->StartUpHorVelocity = FVector(MovementComponent->Velocity.X, MovementComponent->Velocity.Y, 0.f);
 }

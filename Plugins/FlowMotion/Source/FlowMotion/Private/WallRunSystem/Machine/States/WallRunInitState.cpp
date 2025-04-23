@@ -5,7 +5,7 @@
 void UWallRunInitState::OnEnter()
 {
 	Super::OnEnter();
-	GetWallRunContext()->LastWall = nullptr;
+	GetWallRunContext()->HitData.Wall = nullptr;
 	TransitionTo(FallingStateName);
 }
 

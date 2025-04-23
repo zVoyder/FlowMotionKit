@@ -19,30 +19,16 @@ void UWallRunCheckState::OnProcess(float DeltaTime)
 		TransitionTo(InputStateName);
 		return;
 	}
-	
-	URunnableWall* CurrentWall = nullptr;
-	FHitResult HitResult;
-	
-	if (Context->Runner->CheckAttachWall(Context->StartUpHorVelocity.Length(), true, HitResult, CurrentWall))
+
+	const UWallRunner* Runner = Context->Runner;
+	FWallHitData HitData;
+	if (HasSufficientSpeedToAttach() && Runner->TryGetMostValidWallHit(HitData))
 	{
-		if (CurrentWall == Context->LastWall)
+		if (!CanAttachToWall(HitData))
 			return;
-	
-		Context->LastWall = CurrentWall;
-		Context->bLastWallIsRight = true;
-		TransitionTo(RunningStateName);
-		return;
-	}
-	
-	if (Context->Runner->CheckAttachWall(Context->StartUpHorVelocity.Length(), false, HitResult, CurrentWall))
-	{
-		if (CurrentWall == Context->LastWall)
-			return;
-	
-		Context->LastWall = CurrentWall;
-		Context->bLastWallIsRight = false;
-		TransitionTo(RunningStateName);
-		return;
+
+		Context->HitData = HitData;
+		TransitionTo(AttachStateName);
 	}
 }
 
@@ -51,7 +37,22 @@ void UWallRunCheckState::OnExit()
 	Super::OnExit();
 }
 
-void UWallRunCheckState::OnAbort()
+bool UWallRunCheckState::CanAttachToWall(const FWallHitData& WallHitData) const
 {
-	Super::OnAbort();
+	if (GetWallRunContext()->Runner->bAllowsMultipleAttachOnSameWall)
+		return true;
+	
+	return WallHitData != GetWallRunContext()->HitData;
 }
+
+bool UWallRunCheckState::HasSufficientSpeedToAttach() const
+{
+	const FVector HorizontalVelocity = FVector(
+		GetWallRunContext()->MovementComponent->Velocity.X,
+		GetWallRunContext()->MovementComponent->Velocity.Y,
+		0.f
+	);
+
+	return HorizontalVelocity.Length() >= GetWallRunContext()->Runner->VelocityToAttach;
+}
+

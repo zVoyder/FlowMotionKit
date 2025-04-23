@@ -19,10 +19,7 @@ public:
 	UPROPERTY()
 	UWallRunner* Runner;
 	UPROPERTY()
-	URunnableWall* LastWall;
-	UPROPERTY()
-	bool bLastWallIsRight;
+	FWallHitData HitData;
 	UPROPERTY()
 	UCharacterMovementComponent* MovementComponent;
-	FVector StartUpHorVelocity;
 };
