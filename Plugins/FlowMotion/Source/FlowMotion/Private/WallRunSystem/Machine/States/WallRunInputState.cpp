@@ -13,7 +13,7 @@ void UWallRunInputState::OnProcess(float DeltaTime)
 
 	if (GetWallRunContext()->Runner->WantsToAttach())
 	{
-		TransitionTo(CheckStateName);
+		TransitionTo(WallRunCheckStateName);
 		return;
 	}
 }

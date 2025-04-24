@@ -15,7 +15,7 @@ void UWallRunFallingState::OnProcess(float DeltaTime)
 	Timer += DeltaTime;
 	
 	if (Timer >= GetWallRunContext()->Runner->AttachInputDelay)
-		TransitionTo(InputStateName);
+		TransitionTo(WallRunInputStateName);
 }
 
 void UWallRunFallingState::OnExit()

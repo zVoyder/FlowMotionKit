@@ -3,26 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WallRunStateBase.h"
-#include "WallRunAttachmentState.generated.h"
+#include "RailGrindStateBase.h"
+#include "RailGrindGrindingState.generated.h"
 
 UCLASS()
-class FLOWMOTION_API UWallRunAttachmentState : public UWallRunStateBase
+class FLOWMOTION_API URailGrindGrindingState : public URailGrindStateBase
 {
 	GENERATED_BODY()
 
 private:
-	float ElapsedTime = 0.f;
+	float DistanceAlongSpline;
+	bool bIsMovingForward;
 	
 protected:
 	virtual void OnEnter() override;
 
 	virtual void OnProcess(float DeltaTime) override;
-	
+
+	virtual void OnExit() override;
+
 	virtual void OnAbort() override;
 
 private:
-	void Detach() const;
-	
-	void ScaleVerticalVelocity(const float Scale = 0.f) const;
+	void UpdateDistanceAlongSpline();
 };

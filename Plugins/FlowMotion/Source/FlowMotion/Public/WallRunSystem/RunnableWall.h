@@ -13,6 +13,8 @@ class FLOWMOTION_API URunnableWall : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WallRun")
+	bool bIsEnabled = true;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WallRun", meta = (EditCondition = "bOverrideWallGravityCurve"))
 	UCurveFloat* WallGravityCurveOverride;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WallRun", meta = (EditCondition = "bOverrideWallSpeedAccelerationCurve"))

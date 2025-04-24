@@ -2,7 +2,6 @@
 
 #include "MotionStateMachine/MotionMachine.h"
 #include "FlowMotion.h"
-#include "WallRunSystem/WallRunner.h"
 
 void UMotionMachine::Init(UMotionContext* InContext)
 {
@@ -22,7 +21,7 @@ void UMotionMachine::StartMachine(const FName InitialStateTag)
 
 	bIsRunning = true;
 	CurrentState = States[InitialStateTag];
-	States[InitStateName]->OnEnter();
+	CurrentState->OnEnter();
 }
 
 void UMotionMachine::StopMachine()

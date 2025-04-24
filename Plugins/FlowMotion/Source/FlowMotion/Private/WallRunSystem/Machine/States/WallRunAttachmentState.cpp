@@ -6,10 +6,13 @@ void UWallRunAttachmentState::OnEnter()
 {
 	Super::OnEnter();
 	ElapsedTime = 0.f;
-	
-	GetWallRunContext()->MovementComponent->GravityScale = 0.f;
-	GetWallRunContext()->MovementComponent->bOrientRotationToMovement = false;
-	SetVerticalVelocity(0.f);
+
+	const UWallRunContext* Context = GetWallRunContext();
+	const UWallRunner* Runner = Context->Runner;
+	Context->MovementComponent->GravityScale = 0.f;
+	Context->MovementComponent->bOrientRotationToMovement = false;
+	ScaleVerticalVelocity(Runner->VerticalInertiaConservation);
+	Runner->OnWallRunAttach.Broadcast();
 }
 
 void UWallRunAttachmentState::OnProcess(float DeltaTime)
@@ -22,7 +25,7 @@ void UWallRunAttachmentState::OnProcess(float DeltaTime)
 
 	if (!Runner->WantsToAttach() || !Runner->TryGetMostValidWallHit(Context->HitData))
 	{
-		TransitionTo(FallingStateName);
+		Detach();
 		return;
 	}
 	
@@ -32,7 +35,7 @@ void UWallRunAttachmentState::OnProcess(float DeltaTime)
 	Runner->MoveCharacterAlongWall(DeltaTime, Context->HitData.HitResult, WallOrientation, Stickiness);
 	
 	if (ElapsedTime >= Runner->AttachmentDuration)
-		TransitionTo(RunningStateName);
+		TransitionTo(WallRunningStateName);
 }
 
 void UWallRunAttachmentState::OnAbort()
@@ -41,7 +44,14 @@ void UWallRunAttachmentState::OnAbort()
 	GetWallRunContext()->Runner->ResetMovementComponentData(); // Safe call
 }
 
-void UWallRunAttachmentState::SetVerticalVelocity(const float ZVelocity) const
+void UWallRunAttachmentState::Detach() const
 {
+	GetWallRunContext()->Runner->OnWallRunDetach.Broadcast();
+	TransitionTo(WallRunFallingStateName);
+}
+
+void UWallRunAttachmentState::ScaleVerticalVelocity(const float Scale) const
+{
+	const float ZVelocity = GetWallRunContext()->MovementComponent->Velocity.Z * Scale;
 	GetWallRunContext()->MovementComponent->Velocity = FVector(GetWallRunContext()->MovementComponent->Velocity.X, GetWallRunContext()->MovementComponent->Velocity.Y, ZVelocity);
 }

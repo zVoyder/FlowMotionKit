@@ -10,12 +10,26 @@
 #include "WallRunSystem/Data/WallHitData.h"
 #include "WallRunner.generated.h"
 
-const FName InitStateName = TEXT("WallRunInitState");
-const FName FallingStateName = TEXT("WallRunFallingState");
-const FName InputStateName = TEXT("WallRunInputState");
-const FName AttachStateName = TEXT("WallRunAttachmentState");
-const FName CheckStateName = TEXT("WallRunCheckState");
-const FName RunningStateName = TEXT("WallRunningState");
+class UWallRunContext;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnWallRunAttach
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnWallRunDetach
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnWallRunLaunch
+);
+
+const FName WallRunInitStateName = TEXT("WallRunInitState");
+const FName WallRunFallingStateName = TEXT("WallRunFallingState");
+const FName WallRunInputStateName = TEXT("WallRunInputState");
+const FName WallRunAttachmentStateName = TEXT("WallRunAttachmentState");
+const FName WallRunCheckStateName = TEXT("WallRunCheckState");
+const FName WallRunningStateName = TEXT("WallRunningState");
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FLOWMOTION_API UWallRunner : public UActorComponent
@@ -23,9 +37,16 @@ class FLOWMOTION_API UWallRunner : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnWallRunAttach OnWallRunAttach;
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnWallRunDetach OnWallRunDetach;
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnWallRunLaunch OnWallRunLaunch;
+	
 	// === Wall Run: Tracing & Attachment ===
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Tracing")
-	TEnumAsByte<ECollisionChannel> TraceCheckChannel = ECC_Visibility;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "WallRun|Tracing")
+	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Tracing")
 	float CheckRadius = 75.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Attachment")
@@ -34,8 +55,8 @@ public:
 	float VelocityToDetach = 400.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Attachment")
 	float MinWallRunTime = 0.1f;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Attachment")
-	float DesiredDistanceToWall = 50.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Attachment", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float VerticalInertiaConservation = 0.5f;
 
 	// === Wall Run: Physics & Movement ===
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Movement")
@@ -77,11 +98,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
 	float AttachInputDelay = 0.25f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
-	float AttachmentDuration = 0.5f;
+	float AttachmentDuration = 0.25f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
 	float RotationInterpSpeed = 10.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
-	FVector PivotOffset;
+	FVector TraceOffset;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
+	float DistanceWeight = 1.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
+	float VerticalAngleWeight = 1.0f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Advanced")
+	float HorizontalAngleWeight = 1.0f;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditDefaultsOnly, Category = "WallRun|Debug")
@@ -92,13 +119,15 @@ private:
 	UPROPERTY()
 	UMotionMachine* MotionMachine;
 	UPROPERTY()
+	UWallRunContext* MachineContext;
+	UPROPERTY()
 	AActor* Owner;
 	UPROPERTY()
 	UCharacterMovementComponent* CharacterMovementComponent;
 	bool bWantsToAttach = false;
 	float OriginalGravityScale;
-	float OriginalSpeedScale;
-	float OriginalAccelerationScale;
+	float OriginalSpeed;
+	float OriginalAcceleration;
 	bool bOriginalOrientRotationToMovement;
 	FVector LaunchDirection;
 
@@ -132,6 +161,13 @@ public:
 	 */
 	UFUNCTION(BlueprintPure)
 	bool IsWallRunningOnRight() const;
+
+	/**
+	 * @brief Checks if the character is wall running on the left side.
+	 * @return True if the character is wall running on the left side, false otherwise.
+	 */
+	UFUNCTION(BlueprintPure)
+	bool IsWallRunningOnLeft() const;
 
 	/**
 	 * @brief Checks if the character is in the process of attaching to a wall.
@@ -187,25 +223,25 @@ public:
 	 * @brief Gets the trace location of the actor.
 	 * @return The trace location of the actor.
 	 */
-	FVector GetActorTraceLocation() const;
+	FVector GetTraceLocation() const;
 
 	/**
 	 * @brief Sets the original gravity scale of the character.
 	 * @param GravityScale The original gravity scale to set.
 	 */
-	void SetOriginalGravityScale(float GravityScale); // In case there are other components that have concurrency with the gravity scale
+	void SetOriginalGravityScale(float GravityScale); // In case there are other components that have concurrency with
 
 	/**
 	 * @brief Sets the original speed of the character.
-	 * @param SpeedScale The original speed scale to set.
+	 * @param Speed The original speed scale to set.
 	 */
-	void SetOriginalSpeed(float SpeedScale);
+	void SetOriginalSpeed(float Speed);
 
 	/**
 	 * @brief Sets the original acceleration of the character.
-	 * @param AccelerationScale The original acceleration scale to set.
+	 * @param Acceleration The original acceleration scale to set.
 	 */
-	void SetOriginalAcceleration(float AccelerationScale);
+	void SetOriginalAcceleration(float Acceleration);
 
 	/**
 	 * @brief Sets the original orientation to movement of the character.

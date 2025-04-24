@@ -16,7 +16,7 @@ void UWallRunCheckState::OnProcess(float DeltaTime)
 	
 	if (!Context->Runner->WantsToAttach())
 	{
-		TransitionTo(InputStateName);
+		TransitionTo(WallRunInputStateName);
 		return;
 	}
 
@@ -28,7 +28,7 @@ void UWallRunCheckState::OnProcess(float DeltaTime)
 			return;
 
 		Context->HitData = HitData;
-		TransitionTo(AttachStateName);
+		TransitionTo(WallRunAttachmentStateName);
 	}
 }
 

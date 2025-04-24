@@ -37,3 +37,18 @@ UWallRunContext* UFlowMotionFactory::CreateWallRunContext(UWallRunner* InWallRun
 	NewContext->MovementComponent = InMovementComponent;
 	return NewContext;
 }
+
+URailGrindContext* UFlowMotionFactory::CreateRailGrindContext(URailGrinder* InRailGrinder, UCharacterMovementComponent* InMovementComponent)
+{
+	if (!InRailGrinder || !IsValid(InMovementComponent))
+	{
+		UE_LOG(LogFlowMotion, Error, TEXT("UFlowMotionFactory::CreateRailGrindContext: Cannot create RailGrindContext, invalid rail grinder or movement component."));
+		return nullptr;
+	}
+
+	URailGrindContext* NewContext = NewObject<URailGrindContext>(InRailGrinder, URailGrindContext::StaticClass());
+	NewContext->RailGrinder = InRailGrinder;
+	NewContext->Owner = InRailGrinder->GetOwner();
+	NewContext->MovementComponent = InMovementComponent;
+	return NewContext;
+}

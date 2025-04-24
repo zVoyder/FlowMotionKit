@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "WallRunStateBase.h"
-#include "WallRunningState.generated.h"
+#include "WallRunRunningState.generated.h"
 
 constexpr float TraceDistanceMultiplier = 1.5f;
 
 UCLASS()
-class FLOWMOTION_API UWallRunningState : public UWallRunStateBase
+class FLOWMOTION_API UWallRunRunningState : public UWallRunStateBase
 {
 	GENERATED_BODY()
 
@@ -34,6 +34,10 @@ protected:
 	virtual void OnAbort() override;
 
 private:
+	void DetachAndLaunchCharacter() const;
+	
+	void Detach() const;
+	
 	bool HasWallOnSide() const;
 
 	bool HasSufficientSpeedToKeepRunning() const;

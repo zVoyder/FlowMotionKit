@@ -1,9 +1,9 @@
 ﻿// Copyright VUEDK, Inc. All Rights Reserved.
 
-#include "WallRunSystem/Machine/States/WallRunningState.h"
+#include "WallRunSystem/Machine/States/WallRunRunningState.h"
 #include "FlowMotion.h"
 
-void UWallRunningState::OnEnter()
+void UWallRunRunningState::OnEnter()
 {
 	Super::OnEnter();
 	ElapsedTime = 0.f;
@@ -12,7 +12,7 @@ void UWallRunningState::OnEnter()
 	SetSpeedAcceleration();
 }
 
-void UWallRunningState::OnProcess(float DeltaTime)
+void UWallRunRunningState::OnProcess(float DeltaTime)
 {
 	Super::OnProcess(DeltaTime);
 	ElapsedTime += DeltaTime;
@@ -24,14 +24,13 @@ void UWallRunningState::OnProcess(float DeltaTime)
 	const UWallRunner* Runner = Context->Runner;
 	if (!Runner->WantsToAttach())
 	{
-		LaunchCharacterOffWall();
-		TransitionTo(FallingStateName);
+		DetachAndLaunchCharacter();
 		return;
 	}
 
 	if (!HasWallOnSide())
 	{
-		TransitionTo(FallingStateName);
+		Detach();
 		return;
 	}
 
@@ -45,23 +44,36 @@ void UWallRunningState::OnProcess(float DeltaTime)
 		if (!HasSufficientSpeedToKeepRunning())
 		{
 			UE_LOG(LogFlowMotion, Warning, TEXT("WallRunningState::OnProcess: Insufficient speed."));
-			TransitionTo(FallingStateName);
+			Detach();
 		}
 	}
 }
 
-void UWallRunningState::OnExit()
+void UWallRunRunningState::OnExit()
 {
 	Super::OnExit();
 }
 
-void UWallRunningState::OnAbort()
+void UWallRunRunningState::OnAbort()
 {
 	Super::OnAbort();
 	GetWallRunContext()->Runner->ResetMovementComponentData(); // Safe call
 }
 
-bool UWallRunningState::HasWallOnSide() const
+void UWallRunRunningState::DetachAndLaunchCharacter() const
+{
+	GetWallRunContext()->Runner->OnWallRunLaunch.Broadcast();
+	LaunchCharacterOffWall();
+	Detach();
+}
+
+void UWallRunRunningState::Detach() const
+{
+	GetWallRunContext()->Runner->OnWallRunDetach.Broadcast();
+	TransitionTo(WallRunFallingStateName);
+}
+
+bool UWallRunRunningState::HasWallOnSide() const
 {
 	UWallRunContext* Context = GetWallRunContext();
 	const AActor* Owner = Context->Owner;
@@ -78,17 +90,17 @@ bool UWallRunningState::HasWallOnSide() const
 	if (!IsValid(World))
 		return false;
 
-	const FVector TraceStartPoint = Runner->GetActorTraceLocation();
+	const FVector TraceStartPoint = Runner->GetTraceLocation();
 	const FVector Direction = (Owner->GetActorRightVector() * (Context->HitData.bIsOnRight ? 1.f : -1.f)).GetSafeNormal();
 	const FVector TraceEndPoint = TraceStartPoint + Runner->CheckRadius * TraceDistanceMultiplier * Direction;
 
 	FHitResult HitResult;
-	World->LineTraceSingleByChannel(HitResult, TraceStartPoint, TraceEndPoint, Runner->TraceCheckChannel);
+	World->LineTraceSingleByChannel(HitResult, TraceStartPoint, TraceEndPoint, Runner->TraceChannel);
 	
 	return HitResult.bBlockingHit;
 }
 
-bool UWallRunningState::HasSufficientSpeedToKeepRunning() const
+bool UWallRunRunningState::HasSufficientSpeedToKeepRunning() const
 {
 	const FVector HorizontalVelocity = FVector(
 		GetWallRunContext()->MovementComponent->Velocity.X,
@@ -99,7 +111,7 @@ bool UWallRunningState::HasSufficientSpeedToKeepRunning() const
 	return HorizontalVelocity.Length() > GetWallRunContext()->Runner->VelocityToDetach;
 }
 
-void UWallRunningState::SetGravity()
+void UWallRunRunningState::SetGravity()
 {
 	const UWallRunner* Runner = GetWallRunContext()->Runner;
 	
@@ -123,7 +135,7 @@ void UWallRunningState::SetGravity()
 		bUseGravityCurve = true;
 }
 
-void UWallRunningState::ScaleGravityWithCurve() const
+void UWallRunRunningState::ScaleGravityWithCurve() const
 {
 	if (!bUseGravityCurve)
 		return;
@@ -134,7 +146,7 @@ void UWallRunningState::ScaleGravityWithCurve() const
 	GetWallRunContext()->MovementComponent->GravityScale = Runner->GetOriginalGravityScale() * Mult;
 }
 
-void UWallRunningState::SetSpeedAcceleration()
+void UWallRunRunningState::SetSpeedAcceleration()
 {
 	const UWallRunner* Runner = GetWallRunContext()->Runner;
 	
@@ -161,7 +173,7 @@ void UWallRunningState::SetSpeedAcceleration()
 		bUseSpeedAccelerationCurve = true;
 }
 
-void UWallRunningState::ScaleSpeedAccelerationWithCurve() const
+void UWallRunRunningState::ScaleSpeedAccelerationWithCurve() const
 {
 	if (!bUseSpeedAccelerationCurve)
 		return;
@@ -174,7 +186,7 @@ void UWallRunningState::ScaleSpeedAccelerationWithCurve() const
 	GetWallRunContext()->MovementComponent->MaxAcceleration = ContactAcceleration * AccelerationMult;
 }
 
-void UWallRunningState::LaunchCharacterOffWall() const
+void UWallRunRunningState::LaunchCharacterOffWall() const
 {
 	const UWallRunContext* Context = GetWallRunContext();
 	const UWallRunner* Runner = Context->Runner;

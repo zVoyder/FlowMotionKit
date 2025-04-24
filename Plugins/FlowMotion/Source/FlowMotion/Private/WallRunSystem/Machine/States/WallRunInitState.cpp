@@ -6,7 +6,7 @@ void UWallRunInitState::OnEnter()
 {
 	Super::OnEnter();
 	GetWallRunContext()->HitData.Wall = nullptr;
-	TransitionTo(FallingStateName);
+	TransitionTo(WallRunFallingStateName);
 }
 
 void UWallRunInitState::OnProcess(float DeltaTime)

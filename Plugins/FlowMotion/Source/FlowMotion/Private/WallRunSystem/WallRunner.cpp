@@ -2,7 +2,6 @@
 
 #include "WallRunSystem/WallRunner.h"
 #include "FlowMotion.h"
-#include "Data/WallHitData.h"
 #include "Factories/FlowMotionFactory.h"
 #include "WallRunSystem/Machine/WallRunContext.h"
 #include "WallRunSystem/Machine/States/WallRunAttachmentState.h"
@@ -10,19 +9,20 @@
 #include "WallRunSystem/Machine/States/WallRunCheckState.h"
 #include "WallRunSystem/Machine/States/WallRunInitState.h"
 #include "WallRunSystem/Machine/States/WallRunInputState.h"
-#include "WallRunSystem/Machine/States/WallRunningState.h"
+#include "WallRunSystem/Machine/States/WallRunRunningState.h"
 
 UWallRunner::UWallRunner(): bUseGravityCurves(false),
                             DefaultGravityMultiplierCurve(nullptr),
                             bUseSpeedAccelerationCurves(false),
                             DefaultSpeedAccelerationCurve(nullptr),
-                            PivotOffset(),
+                            TraceOffset(),
                             MotionMachine(nullptr),
+                            MachineContext(nullptr),
                             Owner(nullptr),
                             CharacterMovementComponent(nullptr),
                             OriginalGravityScale(0),
-                            OriginalSpeedScale(0),
-                            OriginalAccelerationScale(0),
+                            OriginalSpeed(0),
+                            OriginalAcceleration(0),
                             bOriginalOrientRotationToMovement(false),
                             LaunchDirection()
 {
@@ -34,7 +34,7 @@ void UWallRunner::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (CharacterMovementComponent->IsFalling())
-		MotionMachine->StartMachine(InitStateName); // Avoid starting the machine if character is not falling
+		MotionMachine->StartMachine(WallRunInitStateName); // Avoid starting the machine if character is not falling
 	else
 		MotionMachine->StopMachine();
 }
@@ -74,25 +74,29 @@ bool UWallRunner::IsWallRunning() const
 	if (!IsValid(MotionMachine) || !MotionMachine->IsRunning())
 		return false;
 	
-	return MotionMachine->IsStateActive(RunningStateName) || 
-	       MotionMachine->IsStateActive(AttachStateName);
+	return MotionMachine->IsStateActive(WallRunningStateName) || 
+	       MotionMachine->IsStateActive(WallRunAttachmentStateName);
 }
 
 bool UWallRunner::IsWallRunningOnRight() const
 {
-	if (!IsWallRunning())
-		return false;
-
-	const UWallRunContext* WallRunContext = Cast<UWallRunContext>(MotionMachine->GetContext());
-	if (!IsValid(WallRunContext))
+	if (!IsWallRunning() || !IsValid(MachineContext))
 		return false;
 	
-	return WallRunContext->HitData.bIsOnRight;
+	return MachineContext->HitData.bIsOnRight;
+}
+
+bool UWallRunner::IsWallRunningOnLeft() const
+{
+	if (!IsWallRunning() || !IsValid(MachineContext))
+		return false;
+	
+	return !MachineContext->HitData.bIsOnRight;
 }
 
 bool UWallRunner::IsAttachingToWall() const
 {
-	return MotionMachine->IsStateActive(AttachStateName);
+	return MotionMachine->IsStateActive(WallRunAttachmentStateName);
 }
 
 bool UWallRunner::WantsToAttach() const
@@ -140,7 +144,7 @@ bool UWallRunner::TryGetMostValidWallHit(FWallHitData& OutWallHitData) const
 		if (HorizontalAngle > MaxHorizontalAngleDifference)
 			continue;
 
-		const float Score = Distance + VerticalAngle + HorizontalAngle;
+		const float Score = Distance * DistanceWeight + VerticalAngle * VerticalAngleWeight + HorizontalAngle * HorizontalAngleWeight;
 
 		if (Score < BestScore)
 		{
@@ -193,10 +197,10 @@ TMap<URunnableWall*, FHitResult> UWallRunner::GetWallsHitsMap() const
 	TArray<FHitResult> HitResults;
 	World->SweepMultiByChannel(
 		HitResults,
-		GetActorTraceLocation(),
-		GetActorTraceLocation(),
+		GetTraceLocation(),
+		GetTraceLocation(),
 		FQuat::Identity,
-		TraceCheckChannel,
+		TraceChannel,
 		FCollisionShape::MakeSphere(CheckRadius)
 	);
 
@@ -223,7 +227,7 @@ TMap<URunnableWall*, FHitResult> UWallRunner::GetWallsHitsMap() const
 		if (HitResult.bBlockingHit && IsValid(HitResult.GetActor()))
 		{
 			URunnableWall* Wall = HitResult.GetActor()->FindComponentByClass<URunnableWall>();
-			if (!IsValid(Wall))
+			if (!IsValid(Wall) || !Wall->bIsEnabled)
 				continue;
 
 			HitsMap.Add(Wall, HitResult);
@@ -257,9 +261,12 @@ float UWallRunner::GetStickinessStrength(const URunnableWall* Wall) const
 	return Wall->StickinessStrengthOverride;
 }
 
-FVector UWallRunner::GetActorTraceLocation() const
+FVector UWallRunner::GetTraceLocation() const
 {
-	return Owner->GetActorLocation() + PivotOffset;
+	if (!IsValid(Owner))
+		return FVector::ZeroVector;
+	
+	return Owner->GetActorLocation() + TraceOffset;
 }
 
 void UWallRunner::SetOriginalGravityScale(const float GravityScale)
@@ -267,14 +274,14 @@ void UWallRunner::SetOriginalGravityScale(const float GravityScale)
 	OriginalGravityScale = GravityScale;
 }
 
-void UWallRunner::SetOriginalSpeed(const float SpeedScale)
+void UWallRunner::SetOriginalSpeed(const float Speed)
 {
-	OriginalSpeedScale = SpeedScale;
+	OriginalSpeed = Speed;
 }
 
-void UWallRunner::SetOriginalAcceleration(const float AccelerationScale)
+void UWallRunner::SetOriginalAcceleration(const float Acceleration)
 {
-	OriginalAccelerationScale = AccelerationScale;
+	OriginalAcceleration = Acceleration;
 }
 
 float UWallRunner::GetOriginalGravityScale() const
@@ -284,12 +291,12 @@ float UWallRunner::GetOriginalGravityScale() const
 
 float UWallRunner::GetOriginalSpeed() const
 {
-	return OriginalSpeedScale;
+	return OriginalSpeed;
 }
 
 float UWallRunner::GetOriginalAcceleration() const
 {
-	return OriginalAccelerationScale;
+	return OriginalAcceleration;
 }
 
 bool UWallRunner::GetOriginalOrientRotationToMovement() const
@@ -312,12 +319,12 @@ void UWallRunner::ResetGravityScale() const
 
 void UWallRunner::ResetSpeed() const
 {
-	CharacterMovementComponent->MaxWalkSpeed = OriginalSpeedScale;
+	CharacterMovementComponent->MaxWalkSpeed = OriginalSpeed;
 }
 
 void UWallRunner::ResetAcceleration() const
 {
-	CharacterMovementComponent->MaxAcceleration = OriginalAccelerationScale;
+	CharacterMovementComponent->MaxAcceleration = OriginalAcceleration;
 }
 
 void UWallRunner::ResetOrientationToMovement() const
@@ -395,9 +402,9 @@ void UWallRunner::Init()
 
 void UWallRunner::SetupMachine()
 {
-	UWallRunContext* WallRunContext = UFlowMotionFactory::CreateWallRunContext(this, CharacterMovementComponent);
+	MachineContext = UFlowMotionFactory::CreateWallRunContext(this, CharacterMovementComponent);
 
-	MotionMachine = UFlowMotionFactory::CreateMotionMachine(WallRunContext);
+	MotionMachine = UFlowMotionFactory::CreateMotionMachine(MachineContext);
 
 	UMotionState* InitState = UFlowMotionFactory::CreateMotionState(
 		this,
@@ -426,21 +433,21 @@ void UWallRunner::SetupMachine()
 
 	UMotionState* WallRunState = UFlowMotionFactory::CreateMotionState(
 		this,
-		UWallRunningState::StaticClass()
+		UWallRunRunningState::StaticClass()
 	);
 
-	MotionMachine->AddState(InitStateName, InitState);
-	MotionMachine->AddState(FallingStateName, FallingState);
-	MotionMachine->AddState(InputStateName, InputState);
-	MotionMachine->AddState(CheckStateName, WallCheckState);
-	MotionMachine->AddState(AttachStateName, AttachmentState);
-	MotionMachine->AddState(RunningStateName, WallRunState);
+	MotionMachine->AddState(WallRunInitStateName, InitState);
+	MotionMachine->AddState(WallRunFallingStateName, FallingState);
+	MotionMachine->AddState(WallRunInputStateName, InputState);
+	MotionMachine->AddState(WallRunCheckStateName, WallCheckState);
+	MotionMachine->AddState(WallRunAttachmentStateName, AttachmentState);
+	MotionMachine->AddState(WallRunningStateName, WallRunState);
 }
 
 void UWallRunner::CacheMovementComponentData()
 {
-	OriginalAccelerationScale = CharacterMovementComponent->MaxAcceleration;
-	OriginalSpeedScale = CharacterMovementComponent->MaxWalkSpeed;
+	OriginalAcceleration = CharacterMovementComponent->MaxAcceleration;
+	OriginalSpeed = CharacterMovementComponent->MaxWalkSpeed;
 	bOriginalOrientRotationToMovement = CharacterMovementComponent->bOrientRotationToMovement;
 	OriginalGravityScale = CharacterMovementComponent->GravityScale;
 }
