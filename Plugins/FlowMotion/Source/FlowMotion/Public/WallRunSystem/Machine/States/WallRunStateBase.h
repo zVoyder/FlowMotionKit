@@ -18,6 +18,10 @@ private:
 	
 protected:
 	virtual void OnAdded(UMotionMachine* InMachine) override;
-	
+
+	/**
+	 * @brief Gets the wall run context.
+	 * @return The wall run context.
+	 */
 	UWallRunContext* GetWallRunContext() const;
 };

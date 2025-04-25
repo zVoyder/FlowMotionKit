@@ -24,13 +24,30 @@ protected:
 	virtual void OnAbort() override;
 
 private:
+	/**
+	 * @brief Sets the direction of the rail grinder based on the rail hit data.
+	 */
 	void SetDirection() const;
-	
+
+	/**
+	 * @brief Updates the distance along the spline based on the rail hit data.
+	 */
 	void UpdateDistanceAlongSpline();
 
+	/**
+	 * @brief Launches the character off the rail.
+	 */
 	void LaunchCharacterOffRail() const;
 
+	/**
+	 * @brief Checks if the character has reached the end of the rail.
+	 * @return True if the character has reached the end of the rail, false otherwise.
+	 */
 	bool HasReachedEndOfRail() const;
 
+	/**
+	 * @brief Gets the distance at which the character should detach from the rail.
+	 * @return The distance at which the character should detach from the rail.
+	 */
 	float GetDetachDistance() const;
 };

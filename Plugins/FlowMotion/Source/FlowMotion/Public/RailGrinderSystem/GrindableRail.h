@@ -34,22 +34,47 @@ private:
 	
 public:
 	UGrindableRail();
-	
+
+	/**
+	 * @brief Gets the closest distance on the spline to a given world location.
+	 * @param WorldLocation The world location to check.
+	 * @return The closest distance on the spline to the given world location.
+	 */
 	UFUNCTION(BlueprintPure)
 	float GetClosestDistanceOnSpline(const FVector& WorldLocation) const;
 
+	/**
+	 * @brief Gets the spline component associated with this rail.
+	 * @return The spline component associated with this rail.
+	 */
 	UFUNCTION(BlueprintPure)
 	USplineComponent* GetSplineComponent() const;
 
+	/**
+	 * @brief Checks if the rail has an offset override.
+	 * @return True if the rail has an offset override, false otherwise.
+	 */
 	bool HasRailOffsetOverride() const;
-	
+
+	/**
+	 * @brief Checks if the rail has a speed override.
+	 * @return True if the rail has a speed override, false otherwise.
+	 */
 	bool HasRailSpeedOverride() const;
 
+	/**
+	 * @brief Checks if the rail has a detach distance override.
+	 * @return True if the rail has a detach distance override, false otherwise.
+	 */
 	bool HasDetachDistanceOverride() const;
 	
 protected:
 	virtual void BeginPlay() override;
 
 private:
+	/**
+	 * @brief Checks if the rail grinder component is valid and has all required components.
+	 * @return True if the rail grinder component is valid, false otherwise.
+	 */
 	bool Check() const;
 };

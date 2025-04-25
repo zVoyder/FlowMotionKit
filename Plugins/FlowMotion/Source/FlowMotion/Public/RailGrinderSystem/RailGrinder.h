@@ -95,46 +95,112 @@ private:
 
 public:
 	URailGrinder();
-	
+
+	/**
+	 * @brief Attempts to attach the character to the rail.
+	 */
 	UFUNCTION(BlueprintCallable)
 	void AttachToRail();
 
+	/**
+	 * @brief Attempts to detach the character from the rail.
+	 */
 	UFUNCTION(BlueprintCallable)
 	void DetachFromRail();
 
+	/**
+	 * @brief Checks if the character wants to grind.
+	 * @return True if the character wants to grind, false otherwise.
+	 */
 	UFUNCTION(BlueprintPure)
 	bool WantsToGrind() const;
 
+	/**
+	 * @brief Checks if the character is grinding.
+	 * @return True if the character is grinding, false otherwise.
+	 */
 	UFUNCTION(BlueprintPure)
 	bool IsRailGrinding() const;
-	
+
+	/**
+	 * @brief Moves and rotates the character along the rail.
+	 * @param DeltaTime Delta time since the last frame.
+	 * @param CurrentSplineDistance Current distance along the spline.
+	 * @param RailHitData The rail hit data.
+	 * @param bIsGoingReverse True if the character is going in reverse, false otherwise.
+	 */
 	virtual void MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData, bool& bIsGoingReverse);
 
+	/**
+	 * @brief Tries to get the most valid rail hit data.
+	 * @param OutRailHitData The rail hit data.
+	 * @return True if a valid rail hit was found, false otherwise.
+	 */
 	virtual bool TryGetMostValidRailHit(FRailHitData& OutRailHitData) const;
-	
+
+	/**
+	 * @brief Gets a hits map of grindable rails.
+	 * @return A map of grindable rails and their corresponding hit results.
+	 */
 	TMap<UGrindableRail*, FHitResult> GetRailsHitsMap() const;
 
+	/**
+	 * @brief Gets the rail speed for a if provided by the rail or the default speed.
+	 * @param Rail The rail to get the speed for.
+	 * @return The speed of the rail.
+	 */
 	float GetRailSpeed(const UGrindableRail* Rail) const;
 
+	/**
+	 * @brief Gets the rail offset for a rail if provided by the rail or the default offset.
+	 * @param Rail The rail to get the offset for.
+	 * @return The offset of the rail.
+	 */
 	float GetRailOffset(const UGrindableRail* Rail) const;
-	
+
+	/**
+	 * @brief Gets the trace location.
+	 * @return The trace location.
+	 */
 	FVector GetTraceLocation() const;
-	
+
+	/**
+	 * @brief Resets the movement component data.
+	 */
 	void ResetMovementComponentData() const;
 
+	/**
+	 * @brief Resets the movement mode to its original mode.
+	 */
 	void ResetMovementMode() const;
-	
+
+	/**
+	 * @brief Resets the orientation to movement to its original state.
+	 */
 	void ResetOrientationToMovement() const;
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
+	/**
+	 * @brief Initializes the rail grinder component.
+	 */
 	void Init();
 
+	/**
+	 * @brief Sets up the machine context.
+	 */
 	void SetupMachine();
-	
+
+	/**
+	 * @brief Sets up the machine state.
+	 */
 	void CacheMovementComponentData();
-	
+
+	/**
+	 * @brief Checks if the rail grinder component is valid and has all required components.
+	 * @return True if the rail grinder component is valid, false otherwise.
+	 */
 	bool Check() const;
 };

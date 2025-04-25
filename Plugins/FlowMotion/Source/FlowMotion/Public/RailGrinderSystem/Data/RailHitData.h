@@ -26,6 +26,10 @@ struct FLOWMOTION_API FRailHitData
 	{
 	}
 
+	/**
+	 * @brief Checks if the rail hit data is valid.
+	 * @return True if the rail hit data is valid, false otherwise.
+	 */
 	bool IsRailHitValid() const
 	{
 		return IsValid(Rail) && HitResult.bBlockingHit;

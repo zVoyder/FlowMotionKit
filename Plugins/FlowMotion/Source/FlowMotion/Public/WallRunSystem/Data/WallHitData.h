@@ -13,10 +13,8 @@ struct FLOWMOTION_API FWallHitData
 
 	UPROPERTY()
 	FHitResult HitResult;
-
 	UPROPERTY()
 	URunnableWall* Wall;
-
 	UPROPERTY()
 	bool bIsOnRight;
 
@@ -32,6 +30,10 @@ struct FLOWMOTION_API FWallHitData
 	{
 	}
 
+	/**
+	 * @brief Checks if the wall hit data is valid.
+	 * @return True if the wall hit data is valid, false otherwise.
+	 */
 	bool IsWallHitValid() const
 	{
 		return IsValid(Wall) && HitResult.bBlockingHit;

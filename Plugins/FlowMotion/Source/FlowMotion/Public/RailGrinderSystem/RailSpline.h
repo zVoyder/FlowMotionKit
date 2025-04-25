@@ -23,9 +23,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Mesh")
 	TEnumAsByte<ESplineMeshAxis::Type> MeshForwardAxis = ESplineMeshAxis::X;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Collision")
 	FCollisionProfileName CollisionProfileName = UCollisionProfile::BlockAll_ProfileName;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Collision")
 	TEnumAsByte<ECollisionEnabled::Type> CollisionEnabled = ECollisionEnabled::QueryAndPhysics;
 	
 private:
@@ -50,7 +50,13 @@ public:
 #endif
 	
 private:
+	/**
+	 * @brief Creates the spline mesh components based on the spline points.
+	 */
 	void GenerateMeshes();
 
+	/**
+	 * @brief Clears the existing spline mesh components.
+	 */
 	void ClearMeshes();
 };

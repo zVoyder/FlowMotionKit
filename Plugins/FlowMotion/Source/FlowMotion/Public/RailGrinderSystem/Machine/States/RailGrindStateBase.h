@@ -18,6 +18,10 @@ private:
 	
 protected:
 	virtual void OnAdded(UMotionMachine* InMachine) override;
-	
+
+	/**
+	 * @brief Gets the rail grind context.
+	 * @return The rail grind context.
+	 */
 	URailGrindContext* GetRailGrindContext() const;
 };

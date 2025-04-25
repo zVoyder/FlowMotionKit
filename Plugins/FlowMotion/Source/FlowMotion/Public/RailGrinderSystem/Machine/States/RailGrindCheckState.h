@@ -19,5 +19,9 @@ protected:
 	virtual void OnExit() override;
 
 private:
+	/**
+	 * @brief Checks if the character has sufficient speed to grind.
+	 * @return True if the character has sufficient speed to grind, false otherwise.
+	 */
 	bool HasSufficientSpeedToGrind() const;
 };
