@@ -157,7 +157,7 @@ A lightweight component used to mark spline-based rails as grindable and overrid
 - `bIsEnabled`: Toggles rail grind functionality on this component.
 - `RailOffsetOverride`: Optional override for character offset from spline (default: `125.f`).
 - `RailSpeedOverride`: Optional override for grind speed (default: `500.f`).
-- `DetachDistanceOverride`: Optional override for how far the character can be from the rail before detaching (default: `200.f`).
+- `DetachDistanceOverride`: Optional override that defines how close to the end of the spline the character must be before detaching (default: `200.f`).
 
 #### Internal Flags (Set Internally)
 
