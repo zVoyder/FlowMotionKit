@@ -18,14 +18,16 @@ void URailGrindGrindingState::OnEnter()
 void URailGrindGrindingState::OnProcess(float DeltaTime)
 {
 	Super::OnProcess(DeltaTime);
-
 	URailGrindContext* Context = GetRailGrindContext();
-	URailGrinder* RailGrinder = Context->RailGrinder;
-
-	RailGrinder->MoveAndRotateCharacterAlongRail(DeltaTime, DistanceAlongSpline, Context->HitData, Context->bIsGoingReverse);
 
 	if (HasReachedEndOfRail())
+	{
 		GetMachine()->StopMachine();
+		return;
+	}
+
+	URailGrinder* RailGrinder = Context->RailGrinder;
+	RailGrinder->MoveAndRotateCharacterAlongRail(DeltaTime, DistanceAlongSpline, Context->HitData, Context->bIsGoingReverse);
 }
 
 void URailGrindGrindingState::OnExit()
@@ -63,10 +65,10 @@ void URailGrindGrindingState::LaunchCharacterOffRail() const
 {
 	const URailGrindContext* Context = GetRailGrindContext();
 	const URailGrinder* Grinder = Context->RailGrinder;
-	
+
 	FVector SplineTangent = Context->HitData.Rail->GetSplineComponent()
-		->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::World)
-		.GetSafeNormal();
+	                               ->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::World)
+	                               .GetSafeNormal();
 
 	if (Context->bIsGoingReverse)
 		SplineTangent = -SplineTangent;

@@ -68,6 +68,9 @@ void ARailSpline::GenerateMeshes()
 		SplineComponent->GetLocationAndTangentAtSplinePoint(i, StartPos, StartTangent, ESplineCoordinateSpace::Local);
 		SplineComponent->GetLocationAndTangentAtSplinePoint(i + 1, EndPos, EndTangent, ESplineCoordinateSpace::Local);
 
+		FVector UpVector = SplineComponent->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::Local);
+		SplineMesh->SetSplineUpDir(UpVector, ESplineCoordinateSpace::Local);
+
 		SplineMesh->SetStartAndEnd(StartPos, StartTangent, EndPos, EndTangent);
 		
 		SplineMesh->SetCollisionProfileName(CollisionProfileName.Name);

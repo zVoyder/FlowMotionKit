@@ -71,7 +71,7 @@ void URailGrinder::MoveAndRotateCharacterAlongRail(float DeltaTime, float& Curre
 		return;
 	}
 	
-	CurrentSplineDistance += GetRailSpeed(RailHitData.Rail) * DeltaTime * (bIsGoingReverse ? -1.f : 1.f);
+	CurrentSplineDistance += GetRailSpeed(RailHitData.Rail) * GetSmoothedDeltaTime() * (bIsGoingReverse ? -1.f : 1.f);
 	const float SplineLength = Spline->GetSplineLength();
 	CurrentSplineDistance = FMath::Clamp(CurrentSplineDistance, 0.f, SplineLength);
 	
@@ -79,16 +79,16 @@ void URailGrinder::MoveAndRotateCharacterAlongRail(float DeltaTime, float& Curre
 	const FVector Offset = Owner->GetActorUpVector() * GetRailOffset(RailHitData.Rail);
 	const FVector TargetLocation = NextLocation + Offset;
 	
-	FRotator TargetRotation = Spline->FindRotationClosestToWorldLocation(NextLocation, ESplineCoordinateSpace::World);
+	FRotator TargetRotation = Spline->GetRotationAtDistanceAlongSpline(CurrentSplineDistance, ESplineCoordinateSpace::World);
 	if (bIsGoingReverse)
 	{
-		TargetRotation = TargetRotation + FRotator(0.f, 180.f, 0.f);
+		TargetRotation.Yaw += 180.f;
 		TargetRotation.Pitch *= -1.f;
 		TargetRotation.Roll *= -1.f;
 	}
 	
-	Owner->SetActorRotation(TargetRotation, ETeleportType::TeleportPhysics);
-	Owner->SetActorLocation(TargetLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	Owner->SetActorRotation(TargetRotation);
+	Owner->SetActorLocation(TargetLocation, false, nullptr);
 }
 
 bool URailGrinder::TryGetMostValidRailHit(FRailHitData& OutRailHitData) const
@@ -274,6 +274,18 @@ void URailGrinder::BeginPlay()
 
 	CacheMovementComponentData();
 	SetupMachine();
+}
+
+float URailGrinder::GetSmoothedDeltaTime()
+{
+	const float DeltaTime = GetWorld()->GetDeltaSeconds();
+	
+	if (SmoothedDeltaTime < 0.f)
+		SmoothedDeltaTime = DeltaTime;
+	else
+		SmoothedDeltaTime = FMath::FInterpTo(SmoothedDeltaTime, DeltaTime, DeltaTime, 5.f);
+
+	return SmoothedDeltaTime;
 }
 
 void URailGrinder::Init()

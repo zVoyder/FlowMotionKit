@@ -92,6 +92,7 @@ private:
 	bool bWantsToGrind;
 	EMovementMode OriginalMovementMode;
 	bool bOriginalOrientRotationToMovement;
+	float SmoothedDeltaTime = -1.f;
 
 public:
 	URailGrinder();
@@ -181,6 +182,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	float GetSmoothedDeltaTime();
 
 private:
 	/**
