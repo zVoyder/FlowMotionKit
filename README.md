@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/cf1ab0b6-a13b-48bb-9bc6-dbc77c70b0ae
 
 ## Components
 
-### 1. `UWallRunnerComponent` — Wall Running
+### 1. `UWallRunner` — Wall Running
 
 Allows the character to run along valid surfaces using physics-based calculations and customizable curve settings.
 
@@ -63,7 +63,7 @@ Allows the character to run along valid surfaces using physics-based calculation
 
 ---
 
-### 2. `URailGrinderComponent` — Rail Grinding
+### 2. `URailGrinder` — Rail Grinding
 
 Supports dynamic rail grinding on spline-based paths, with customizable speed and launch options.
 
@@ -120,6 +120,62 @@ An actor that procedurally generates a spline-based mesh for rail grinding.
 
 ---
 
+### 4. `URunnableWall` — Wall Definition Tag
+
+A lightweight component used to mark world geometry as valid runnable walls and override default wall running parameters.
+
+#### Key Properties
+
+- `bIsEnabled`: Toggles wall run functionality on this surface.
+- `WallGravityScaleOverride`: Optional override for wall gravity scale.
+- `WallGravityCurveOverride`: Optional gravity curve override. Takes precedence over `WallGravityScaleOverride`.
+- `WallSpeedAccelerationCurveOverride`: Optional speed/acceleration vector curve override.
+- `StickinessStrengthOverride`: Custom stickiness force override (default: `4.f`).
+
+#### Internal Flags (Set Internally)
+
+- `bOverrideWallGravityScale`: Whether the wall gravity scale override is active.
+- `bOverrideWallGravityCurve`: Whether the wall gravity curve override is active.
+- `bOverrideWallSpeedAccelerationCurve`: Whether the speed/acceleration curve override is active.
+- `bOverrideStickinessStrength`: Whether the stickiness override is active.
+
+#### Methods
+
+- `HasWallGravityScaleOverride()`: Checks if gravity scale override is active.
+- `HasWallGravityCurveOverride()`: Checks if gravity curve override is active.
+- `HasWallSpeedAccelerationCurveOverride()`: Checks if speed/acceleration curve override is active.
+- `HasStickinessStrengthOverride()`: Checks if stickiness override is active.
+
+---
+
+### 5. `UGrindableRail` — Rail Definition Tag
+
+A lightweight component used to mark spline-based rails as grindable and override default grind behavior.
+
+#### Key Properties
+
+- `bIsEnabled`: Toggles rail grind functionality on this component.
+- `RailOffsetOverride`: Optional override for character offset from spline (default: `125.f`).
+- `RailSpeedOverride`: Optional override for grind speed (default: `500.f`).
+- `DetachDistanceOverride`: Optional override for how far the character can be from the rail before detaching (default: `200.f`).
+
+#### Internal Flags (Set Internally)
+
+- `bOverrideRailOffset`: Whether the offset override is active.
+- `bOverrideSpeed`: Whether the speed override is active.
+- `bOverrideDetachDistance`: Whether the detach distance override is active.
+- `SplineComponent`: Reference to the associated spline.
+
+#### Methods
+
+- `GetClosestDistanceOnSpline(WorldLocation)`: Returns closest spline distance from world position.
+- `GetSplineComponent()`: Returns the spline component reference.
+- `HasRailOffsetOverride()`: Checks if offset override is active.
+- `HasRailSpeedOverride()`: Checks if speed override is active.
+- `HasDetachDistanceOverride()`: Checks if detach distance override is active.
+
+---
+
 ## Installation
 
 1. Clone or copy the `FlowMotion` plugin into your project’s `Plugins/` folder.
@@ -135,4 +191,3 @@ An actor that procedurally generates a spline-based mesh for rail grinding.
 - Modular design allows extension via inheritance or messaging.
 
 ---
-
