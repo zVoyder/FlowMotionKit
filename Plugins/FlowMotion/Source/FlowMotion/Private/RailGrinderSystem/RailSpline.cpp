@@ -4,12 +4,10 @@
 #include "Components/SplineComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Engine/World.h"
-#include "RailGrinderSystem/RailGrinder.h"
 
 ARailSpline::ARailSpline()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
 	RootComponent = SplineComponent;
 }
@@ -20,17 +18,32 @@ void ARailSpline::OnConstruction(const FTransform& Transform)
 	GenerateMeshes();
 }
 
-USplineComponent* ARailSpline::GetRailSplineComponent() const
+#if WITH_EDITOR
+void ARailSpline::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	return SplineComponent;
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	GenerateMeshes();
 }
 
-float ARailSpline::GetClosestDistanceOnSpline(const FVector& WorldLocation) const
+void ARailSpline::PostEditMove(bool bFinished)
 {
-	const float InputKey = SplineComponent->FindInputKeyClosestToWorldLocation(WorldLocation);
-	const float Distance = SplineComponent->GetDistanceAlongSplineAtSplineInputKey(InputKey);
-	return Distance;
+	Super::PostEditMove(bFinished);
+	if (!bFinished) return;
+	GenerateMeshes();
 }
+
+void ARailSpline::PostEditUndo()
+{
+	Super::PostEditUndo();
+	GenerateMeshes();
+}
+
+void ARailSpline::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+	GenerateMeshes();
+}
+#endif
 
 void ARailSpline::GenerateMeshes()
 {
@@ -66,8 +79,13 @@ void ARailSpline::GenerateMeshes()
 
 void ARailSpline::ClearMeshes()
 {
-	for (USplineMeshComponent* Comp : SplineMeshComponents)
-		Comp->DestroyComponent();
-	
+	TArray<USceneComponent*> SplineChildren = SplineComponent->GetAttachChildren();
+
+	for (USceneComponent* Child : SplineChildren)
+	{
+		if (USplineMeshComponent* Mesh = Cast<USplineMeshComponent>(Child))
+			Mesh->DestroyComponent();
+	}
+
 	SplineMeshComponents.Empty();
 }

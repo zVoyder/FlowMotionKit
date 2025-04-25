@@ -70,10 +70,10 @@ public:
 
 	// === Wall Run: Launch Settings ===
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Launch")
-	float HorizontalLaunchBoost = 800.f;
+	float HorizontalLaunchForce = 800.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Launch")
-	float VerticalLaunchBoost = 400.f;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Launch")
+	float VerticalLaunchForce = 400.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Launch", meta = (ToolTip = "Scale applied to the forward launch direction. Increasing this value will make the character launch more forward."))
 	float ForwardLaunchScale = 1.2f;
 
 	// === Wall Run: Curve Settings ===
@@ -90,7 +90,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Constraints")
 	bool bAllowsMultipleAttachOnSameWall = false;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Constraints", meta = (ClampMin = "0.0", ClampMax = "90.0"))
-	float MaxVerticalAngleDifference = 15.f;
+	float MaxVerticalAngleDifference = 45.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "WallRun|Constraints", meta = (ClampMin = "0.0", ClampMax = "90.0"))
 	float MaxHorizontalAngleDifference = 45.f;
 

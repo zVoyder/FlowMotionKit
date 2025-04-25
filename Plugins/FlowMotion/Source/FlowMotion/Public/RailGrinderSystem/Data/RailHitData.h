@@ -10,12 +10,11 @@ USTRUCT(BlueprintType)
 struct FLOWMOTION_API FRailHitData
 {
 	GENERATED_BODY()
-
+	
 	UPROPERTY()
 	FHitResult HitResult;
-
 	UPROPERTY()
-	ARailSpline* Rail;
+	UGrindableRail* Rail;
 
 	FRailHitData(): Rail(nullptr)
 	{

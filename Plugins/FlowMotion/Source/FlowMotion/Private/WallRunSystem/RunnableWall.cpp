@@ -4,11 +4,17 @@
 
 URunnableWall::URunnableWall(): WallGravityCurveOverride(nullptr),
                                 WallSpeedAccelerationCurveOverride(nullptr),
+                                bOverrideWallGravityScale(false),
                                 bOverrideWallGravityCurve(false),
                                 bOverrideWallSpeedAccelerationCurve(false),
                                 bOverrideStickinessStrength(false)
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
+
+bool URunnableWall::HasWallGravityScaleOverride() const
+{
+	return bOverrideWallGravityScale;
 }
 
 bool URunnableWall::HasWallSpeedAccelerationCurveOverride() const

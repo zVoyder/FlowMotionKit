@@ -13,7 +13,6 @@ class FLOWMOTION_API URailGrindGrindingState : public URailGrindStateBase
 
 private:
 	float DistanceAlongSpline;
-	bool bIsMovingForward;
 	
 protected:
 	virtual void OnEnter() override;
@@ -25,5 +24,13 @@ protected:
 	virtual void OnAbort() override;
 
 private:
+	void SetDirection() const;
+	
 	void UpdateDistanceAlongSpline();
+
+	void LaunchCharacterOffRail() const;
+
+	bool HasReachedEndOfRail() const;
+
+	float GetDetachDistance() const;
 };

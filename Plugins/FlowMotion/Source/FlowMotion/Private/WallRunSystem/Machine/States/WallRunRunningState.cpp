@@ -62,7 +62,6 @@ void UWallRunRunningState::OnAbort()
 
 void UWallRunRunningState::DetachAndLaunchCharacter() const
 {
-	GetWallRunContext()->Runner->OnWallRunLaunch.Broadcast();
 	LaunchCharacterOffWall();
 	Detach();
 }
@@ -96,7 +95,7 @@ bool UWallRunRunningState::HasWallOnSide() const
 
 	FHitResult HitResult;
 	World->LineTraceSingleByChannel(HitResult, TraceStartPoint, TraceEndPoint, Runner->TraceChannel);
-	
+
 	return HitResult.bBlockingHit;
 }
 
@@ -114,25 +113,34 @@ bool UWallRunRunningState::HasSufficientSpeedToKeepRunning() const
 void UWallRunRunningState::SetGravity()
 {
 	const UWallRunner* Runner = GetWallRunContext()->Runner;
-	
-	if (!GetWallRunContext()->Runner->bUseGravityCurves)
+	const URunnableWall* Wall = GetWallRunContext()->HitData.Wall;
+	UCharacterMovementComponent* Movement = GetWallRunContext()->MovementComponent;
+
+	// If the wall doesn't provide a gravity curve
+	if (!Runner->bUseGravityCurves)
 	{
 		bUseGravityCurve = false;
-		GetWallRunContext()->MovementComponent->GravityScale = Runner->DefaultGravityScale;
+		Movement->GravityScale = Wall->HasWallGravityScaleOverride() ? Wall->WallGravityScaleOverride : Runner->DefaultGravityScale;
 		return;
 	}
-	
-	const URunnableWall* Wall = GetWallRunContext()->HitData.Wall;
+
 	if (Wall->HasWallGravityCurveOverride())
 	{
 		bUseGravityCurve = true;
-		GravityCurve = GetWallRunContext()->HitData.Wall->WallGravityCurveOverride;
+		GravityCurve = Wall->WallGravityCurveOverride;
 		return;
 	}
 	
-	GravityCurve = GetWallRunContext()->Runner->DefaultGravityMultiplierCurve;
-	if (IsValid(GravityCurve))
-		bUseGravityCurve = true;
+	if (Wall->HasWallGravityScaleOverride())
+	{
+		bUseGravityCurve = false;
+		Movement->GravityScale = Wall->WallGravityScaleOverride;
+		return;
+	}
+
+	// Default
+	GravityCurve = Runner->DefaultGravityMultiplierCurve;
+	bUseGravityCurve = true;
 }
 
 void UWallRunRunningState::ScaleGravityWithCurve() const
@@ -149,7 +157,7 @@ void UWallRunRunningState::ScaleGravityWithCurve() const
 void UWallRunRunningState::SetSpeedAcceleration()
 {
 	const UWallRunner* Runner = GetWallRunContext()->Runner;
-	
+
 	if (!GetWallRunContext()->Runner->bUseSpeedAccelerationCurves)
 	{
 		bUseSpeedAccelerationCurve = false;
@@ -177,11 +185,11 @@ void UWallRunRunningState::ScaleSpeedAccelerationWithCurve() const
 {
 	if (!bUseSpeedAccelerationCurve)
 		return;
-	
+
 	const UWallRunner* Runner = GetWallRunContext()->Runner;
 	const float SpeedMult = SpeedAccelerationCurve->GetVectorValue(ElapsedTime).X;
 	const float AccelerationMult = SpeedAccelerationCurve->GetVectorValue(ElapsedTime).Y;
-	
+
 	GetWallRunContext()->MovementComponent->MaxWalkSpeed = ContactSpeed * SpeedMult;
 	GetWallRunContext()->MovementComponent->MaxAcceleration = ContactAcceleration * AccelerationMult;
 }
@@ -202,6 +210,7 @@ void UWallRunRunningState::LaunchCharacterOffWall() const
 	const FVector HorizontalVelocity = FVector(CurrentVelocity.X, CurrentVelocity.Y, 0.f);
 	const FVector ForwardMomentum = WallForward * HorizontalVelocity.Size() * Runner->ForwardLaunchScale;
 
-	const FVector LaunchVector = (ImpactNormal * Runner->HorizontalLaunchBoost) + (FVector::UpVector * Runner->VerticalLaunchBoost) + ForwardMomentum;
+	const FVector LaunchVector = (ImpactNormal * Runner->HorizontalLaunchForce) + (FVector::UpVector * Runner->VerticalLaunchForce) + ForwardMomentum;
 	Context->MovementComponent->Launch(LaunchVector);
+	Runner->OnWallRunLaunch.Broadcast();
 }

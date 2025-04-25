@@ -16,8 +16,6 @@ class FLOWMOTION_API ARailSpline : public AActor
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind")
-	bool bIsEnabled = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Mesh")
 	UStaticMesh* MeshToUse;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Mesh")
@@ -40,10 +38,16 @@ public:
 	ARailSpline();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
-
-	USplineComponent* GetRailSplineComponent() const;
 	
-	float GetClosestDistanceOnSpline(const FVector& WorldLocation) const;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	virtual void PostEditMove(bool bFinished) override;
+
+	virtual void PostEditUndo() override;
+
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+#endif
 	
 private:
 	void GenerateMeshes();

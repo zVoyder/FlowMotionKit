@@ -71,7 +71,7 @@ void UWallRunner::MoveCharacterAlongWall(const float DeltaTime, const FHitResult
 
 bool UWallRunner::IsWallRunning() const
 {
-	if (!IsValid(MotionMachine) || !MotionMachine->IsRunning())
+	if (!IsValid(MotionMachine))
 		return false;
 	
 	return MotionMachine->IsStateActive(WallRunningStateName) || 

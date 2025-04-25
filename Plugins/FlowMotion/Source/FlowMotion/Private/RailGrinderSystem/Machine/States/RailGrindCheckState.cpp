@@ -16,7 +16,7 @@ void URailGrindCheckState::OnProcess(float DeltaTime)
 	
 	URailGrindContext* Context = GetRailGrindContext();
 	if (Context->RailGrinder->TryGetMostValidRailHit(Context->HitData))
-		TransitionTo(RaildGrindAttachmentStateName);
+		TransitionTo(RailGrindGrindingStateName);
 }
 
 void URailGrindCheckState::OnExit()
@@ -30,5 +30,5 @@ bool URailGrindCheckState::HasSufficientSpeedToGrind() const
 	const URailGrinder* RailGrinder = Context->RailGrinder;
 
 	const float HorizontalSpeed = FVector(Context->MovementComponent->Velocity.X, Context->MovementComponent->Velocity.Y, 0.f).Length();
-	return HorizontalSpeed > RailGrinder->MinSpeedToGrind;
+	return HorizontalSpeed >= RailGrinder->MinSpeedToGrind;
 }

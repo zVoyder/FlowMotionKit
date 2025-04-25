@@ -3,18 +3,29 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GrindableRail.h"
 #include "Components/ActorComponent.h"
 #include "Data/RailHitData.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MotionStateMachine/MotionMachine.h"
-#include "RailGrinderSystem/RailSpline.h"
 #include "RailGrinder.generated.h"
 
 class URailGrindContext;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnRailGrindAttach
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnRailGrindDetach
+);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FOnRailGrindLaunch
+);
+
 const FName RailGrindStartingStateName = TEXT("RailGrindStartingState");
 const FName RailGrindCheckStateName = TEXT("RailGrindCheckState");
-const FName RaildGrindAttachmentStateName = TEXT("RailGrindAttachmentState");
 const FName RailGrindGrindingStateName = TEXT("RailGrindGrindingState");
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -23,35 +34,49 @@ class FLOWMOTION_API URailGrinder : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rail Grind")
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnRailGrindAttach OnRailGrindAttach;
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnRailGrindDetach OnRailGrindDetach;
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FOnRailGrindLaunch OnRailGrindLaunch;
+	
+	// === Rail Grind: Tracing & Attachment ===
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RailGrind|Tracing")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float MinSpeedToGrind = 50.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float AttachmentDuration = 0.25f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float RailSpeed = 100.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float AttachInputDelay = 0.25f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float RailOffset = 100.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Tracing")
 	float CheckRadius = 100.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	float MaxGrindableAngle = 65.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind")
-	FVector TraceOffset = FVector(0.f, 0.f, 0.f);
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind|Advanced")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Attachment")
+	float DefaultRailOffset = 125.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Attachment")
+	float MinSpeedToGrind = 150.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Attachment")
+	float DefaultDetachDistance = 200.f;
+	
+	// === Rail Grind: Movement ===
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Movement")
+	float DefaultRailSpeed = 500.f;
+	
+	// === Rail Grind: Launch Settings ===
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Launch")
+	float HorizontalLaunchForce = 800.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Launch")
+	float VerticalLaunchForce = 1200.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Launch", meta = (ToolTip = "Scale applied to the forward launch direction. Increasing this value will make the character launch more forward."))
+	float ForwardLaunchScale = 1.0f;
+	
+	// === Rail Grind: Advanced ===
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
+	FVector TraceOffset = FVector(0.f, 0.f, -90.f);
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
+	float AttachInputDelay = 0.25f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
 	float DistanceWeight = 1.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind|Advanced")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
 	float AngleWeight = 1.5f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind|Advanced")
-	float PositionLerpSpeed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Rail Grind|Advanced")
-	float RotationLerpSpeed;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Debug")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RailGrind|Debug")
 	bool bShowDebug;
 #endif
 
@@ -79,13 +104,20 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	bool WantsToGrind() const;
+
+	UFUNCTION(BlueprintPure)
+	bool IsRailGrinding() const;
 	
 	virtual void MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData, bool& bIsGoingReverse);
 
 	virtual bool TryGetMostValidRailHit(FRailHitData& OutRailHitData) const;
+	
+	TMap<UGrindableRail*, FHitResult> GetRailsHitsMap() const;
 
-	TMap<ARailSpline*, FHitResult> GetRailsHitsMap() const;
+	float GetRailSpeed(const UGrindableRail* Rail) const;
 
+	float GetRailOffset(const UGrindableRail* Rail) const;
+	
 	FVector GetTraceLocation() const;
 	
 	void ResetMovementComponentData() const;
