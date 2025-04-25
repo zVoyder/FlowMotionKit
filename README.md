@@ -1,6 +1,6 @@
 # FlowMotion Plugin
 
-**FlowMotion** is a plugin for Unreal Engine that provides two modular components for implementing cinematic parkour-inspired movement: **Wall Running** and **Rail Grinding**. The system is fully customizable and serves as a solid base for high-mobility third person games.
+**FlowMotion** is a plugin for Unreal Engine 5 that provides two modular components for implementing cinematic parkour-inspired movement: **Wall Running** and **Rail Grinding**. The system is fully customizable and serves as a solid base for high-mobility third person games.
 
 ---
 
