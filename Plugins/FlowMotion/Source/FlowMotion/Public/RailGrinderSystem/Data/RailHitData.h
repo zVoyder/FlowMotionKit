@@ -10,19 +10,30 @@ USTRUCT(BlueprintType)
 struct FLOWMOTION_API FRailHitData
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY()
 	FHitResult HitResult;
 	UPROPERTY()
 	UGrindableRail* Rail;
+	UPROPERTY()
+	bool bIsGoingReverse;
 
-	FRailHitData(): Rail(nullptr)
+	FRailHitData(): Rail(nullptr),
+	                bIsGoingReverse(false)
+	{
+	}
+
+	FRailHitData(const FHitResult& InHitResult, UGrindableRail* InRail, const bool bInIsGoingReverse = false)
+		: HitResult(InHitResult),
+		  Rail(InRail),
+		  bIsGoingReverse(bInIsGoingReverse)
 	{
 	}
 
 	FRailHitData(const FRailHitData& Other)
 		: HitResult(Other.HitResult),
-		  Rail(Other.Rail)
+		  Rail(Other.Rail),
+		  bIsGoingReverse(Other.bIsGoingReverse)
 	{
 	}
 

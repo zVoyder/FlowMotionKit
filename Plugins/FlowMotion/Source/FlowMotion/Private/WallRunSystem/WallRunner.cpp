@@ -64,7 +64,7 @@ void UWallRunner::MoveCharacterAlongWall(const float DeltaTime, const FHitResult
 
 	const float RawSpeed = CharacterMovementComponent->Velocity.Size();
 	const float SpeedMultiplier = FMath::Loge(RawSpeed + 1.f);
-	
+
 	CharacterMovementComponent->AddImpulse(WallNormal * StickinessStrength * SpeedMultiplier, true); // Keep the character on the wall
 	CharacterMovementComponent->AddInputVector(WallForward); // Move the character along the wall
 }
@@ -73,16 +73,17 @@ bool UWallRunner::IsWallRunning() const
 {
 	if (!IsValid(MotionMachine))
 		return false;
-	
-	return MotionMachine->IsStateActive(WallRunningStateName) || 
-	       MotionMachine->IsStateActive(WallRunAttachmentStateName);
+
+	return
+		MotionMachine->IsStateActive(WallRunningStateName) ||
+		MotionMachine->IsStateActive(WallRunAttachmentStateName);
 }
 
 bool UWallRunner::IsWallRunningOnRight() const
 {
 	if (!IsWallRunning() || !IsValid(MachineContext))
 		return false;
-	
+
 	return MachineContext->HitData.bIsOnRight;
 }
 
@@ -90,7 +91,7 @@ bool UWallRunner::IsWallRunningOnLeft() const
 {
 	if (!IsWallRunning() || !IsValid(MachineContext))
 		return false;
-	
+
 	return !MachineContext->HitData.bIsOnRight;
 }
 
@@ -149,9 +150,7 @@ bool UWallRunner::TryGetMostValidWallHit(FWallHitData& OutWallHitData) const
 		if (Score < BestScore)
 		{
 			BestScore = Score;
-			OutWallHitData.bIsOnRight = bIsOnRight;
-			OutWallHitData.Wall = Wall;
-			OutWallHitData.HitResult = HitResult;
+			OutWallHitData = FWallHitData(HitResult, Wall, bIsOnRight);
 		}
 	}
 
@@ -257,7 +256,7 @@ float UWallRunner::GetStickinessStrength(const URunnableWall* Wall) const
 {
 	if (!IsValid(Wall) || !Wall->HasStickinessStrengthOverride())
 		return DefaultStickinessStrength;
-	
+
 	return Wall->StickinessStrengthOverride;
 }
 
@@ -265,7 +264,7 @@ FVector UWallRunner::GetTraceLocation() const
 {
 	if (!IsValid(Owner))
 		return FVector::ZeroVector;
-	
+
 	return Owner->GetActorLocation() + TraceOffset;
 }
 
@@ -336,7 +335,7 @@ FRotator UWallRunner::GetWallOrientation(const FWallHitData& WallHitData) const
 {
 	if (!IsValid(Owner) || !WallHitData.IsWallHitValid())
 		return FRotator::ZeroRotator;
-	
+
 	const FVector ImpactNormal = WallHitData.HitResult.ImpactNormal.GetSafeNormal();
 	FVector WallForward =
 		WallHitData.bIsOnRight

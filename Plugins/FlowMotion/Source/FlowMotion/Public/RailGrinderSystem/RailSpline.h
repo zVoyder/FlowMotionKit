@@ -27,17 +27,28 @@ public:
 	FCollisionProfileName CollisionProfileName = UCollisionProfile::BlockAll_ProfileName;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Collision")
 	TEnumAsByte<ECollisionEnabled::Type> CollisionEnabled = ECollisionEnabled::QueryAndPhysics;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Debug")
+	bool bShowDebug;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Debug", meta = (EditCondition = "bShowDebug"))
+	float ArrowsLength = 100.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind|Debug", meta = (EditCondition = "bShowDebug"))
+	float ArrowsSize = 25.f;
+#endif
 	
 private:
 	UPROPERTY()
 	USplineComponent* SplineComponent;
 	UPROPERTY(Transient)
 	TArray<USplineMeshComponent*> SplineMeshComponents;
-	
+
 public:
 	ARailSpline();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	virtual void Tick(float DeltaSeconds) override;
 	
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -59,4 +70,8 @@ private:
 	 * @brief Clears the existing spline mesh components.
 	 */
 	void ClearMeshes();
+
+#if WITH_EDITORONLY_DATA
+	void DrawUpVectors() const;
+#endif
 };

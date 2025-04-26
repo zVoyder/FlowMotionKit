@@ -11,9 +11,6 @@ class FLOWMOTION_API URailGrindGrindingState : public URailGrindStateBase
 {
 	GENERATED_BODY()
 
-private:
-	float DistanceAlongSpline;
-	
 protected:
 	virtual void OnEnter() override;
 
@@ -25,14 +22,9 @@ protected:
 
 private:
 	/**
-	 * @brief Sets the direction of the rail grinder based on the rail hit data.
-	 */
-	void SetDirection() const;
-
-	/**
 	 * @brief Updates the distance along the spline based on the rail hit data.
 	 */
-	void UpdateDistanceAlongSpline();
+	void UpdateDistanceAlongSpline() const;
 
 	/**
 	 * @brief Launches the character off the rail.

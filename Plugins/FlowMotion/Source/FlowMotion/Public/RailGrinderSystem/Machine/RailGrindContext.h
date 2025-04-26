@@ -23,5 +23,5 @@ public:
 	UPROPERTY()
 	UCharacterMovementComponent* MovementComponent;
 	UPROPERTY()
-	bool bIsGoingReverse;
+	float SplineDistance;
 };

@@ -26,6 +26,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(
 
 const FName RailGrindStartingStateName = TEXT("RailGrindStartingState");
 const FName RailGrindCheckStateName = TEXT("RailGrindCheckState");
+const FName RailGrindAttachmentStateName = TEXT("RailGrindAttachmentState");
 const FName RailGrindGrindingStateName = TEXT("RailGrindGrindingState");
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -64,12 +65,18 @@ public:
 	float VerticalLaunchForce = 1200.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Launch", meta = (ToolTip = "Scale applied to the forward launch direction. Increasing this value will make the character launch more forward."))
 	float ForwardLaunchScale = 1.0f;
+
+	// === Rail Grind: Constraints ===
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Constraints", meta = (ClampMin = "0.0", ClampMax = "90.0"))
+	float MaxSplineAngleDifference = 45.f;
 	
 	// === Rail Grind: Advanced ===
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
-	FVector TraceOffset = FVector(0.f, 0.f, -90.f);
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
 	float AttachInputDelay = 0.25f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
+	float AttachmentDuration = 0.1f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
+	FVector TraceOffset = FVector(0.f, 0.f, -90.f);
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
 	float DistanceWeight = 1.0f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RailGrind|Advanced")
@@ -96,7 +103,7 @@ private:
 
 public:
 	URailGrinder();
-
+	
 	/**
 	 * @brief Attempts to attach the character to the rail.
 	 */
@@ -128,9 +135,8 @@ public:
 	 * @param DeltaTime Delta time since the last frame.
 	 * @param CurrentSplineDistance Current distance along the spline.
 	 * @param RailHitData The rail hit data.
-	 * @param bIsGoingReverse True if the character is going in reverse, false otherwise.
 	 */
-	virtual void MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData, bool& bIsGoingReverse);
+	virtual void MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData);
 
 	/**
 	 * @brief Tries to get the most valid rail hit data.
@@ -144,7 +150,7 @@ public:
 	 * @return A map of grindable rails and their corresponding hit results.
 	 */
 	TMap<UGrindableRail*, FHitResult> GetRailsHitsMap() const;
-
+	
 	/**
 	 * @brief Gets the rail speed for a if provided by the rail or the default speed.
 	 * @param Rail The rail to get the speed for.
@@ -183,6 +189,10 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/**
+	 * @brief Gets the smoothed delta time.
+	 * @return The smoothed delta time.
+	 */
 	float GetSmoothedDeltaTime();
 
 private:

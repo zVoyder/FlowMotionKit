@@ -7,7 +7,7 @@
 
 ARailSpline::ARailSpline()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
 	RootComponent = SplineComponent;
 }
@@ -16,6 +16,14 @@ void ARailSpline::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 	GenerateMeshes();
+}
+
+void ARailSpline::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+#if WITH_EDITORONLY_DATA
+	DrawUpVectors();
+#endif
 }
 
 #if WITH_EDITOR
@@ -92,3 +100,18 @@ void ARailSpline::ClearMeshes()
 
 	SplineMeshComponents.Empty();
 }
+
+#if WITH_EDITORONLY_DATA
+void ARailSpline::DrawUpVectors() const
+{
+	if (!bShowDebug || !SplineComponent) return;
+	
+	for (int32 i = 0; i < SplineComponent->GetNumberOfSplinePoints(); ++i)
+	{
+		FVector UpVector = SplineComponent->GetUpVectorAtSplinePoint(i, ESplineCoordinateSpace::World);
+		FVector StartPoint = SplineComponent->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World);
+		FVector EndPoint = StartPoint + UpVector * ArrowsLength;
+		DrawDebugDirectionalArrow(GetWorld(), StartPoint, EndPoint, ArrowsSize, FColor::Red, false, -1.f, 0, 2.f);
+	}
+}
+#endif

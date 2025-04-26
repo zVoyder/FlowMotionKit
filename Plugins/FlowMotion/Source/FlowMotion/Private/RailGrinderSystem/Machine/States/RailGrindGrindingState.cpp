@@ -5,14 +5,7 @@
 void URailGrindGrindingState::OnEnter()
 {
 	Super::OnEnter();
-
-	SetDirection();
-	UpdateDistanceAlongSpline();
-
-	const URailGrindContext* Context = GetRailGrindContext();
-	Context->MovementComponent->bOrientRotationToMovement = false;
-	Context->MovementComponent->DisableMovement();
-	Context->RailGrinder->OnRailGrindAttach.Broadcast();
+	// UpdateDistanceAlongSpline();
 }
 
 void URailGrindGrindingState::OnProcess(float DeltaTime)
@@ -27,7 +20,7 @@ void URailGrindGrindingState::OnProcess(float DeltaTime)
 	}
 
 	URailGrinder* RailGrinder = Context->RailGrinder;
-	RailGrinder->MoveAndRotateCharacterAlongRail(DeltaTime, DistanceAlongSpline, Context->HitData, Context->bIsGoingReverse);
+	RailGrinder->MoveAndRotateCharacterAlongRail(DeltaTime, Context->SplineDistance, Context->HitData);
 }
 
 void URailGrindGrindingState::OnExit()
@@ -43,22 +36,10 @@ void URailGrindGrindingState::OnAbort()
 	LaunchCharacterOffRail();
 }
 
-void URailGrindGrindingState::SetDirection() const
+void URailGrindGrindingState::UpdateDistanceAlongSpline() const
 {
 	URailGrindContext* Context = GetRailGrindContext();
-	const FVector ForwardVector = Context->Owner->GetActorForwardVector();
-	const FVector SplineTangent = Context->HitData.Rail->GetSplineComponent()->GetTangentAtDistanceAlongSpline(
-		Context->HitData.Rail->GetClosestDistanceOnSpline(Context->HitData.HitResult.ImpactPoint),
-		ESplineCoordinateSpace::World
-	).GetSafeNormal();
-
-	Context->bIsGoingReverse = FVector::DotProduct(ForwardVector, SplineTangent) < 0;
-}
-
-void URailGrindGrindingState::UpdateDistanceAlongSpline()
-{
-	const URailGrindContext* Context = GetRailGrindContext();
-	DistanceAlongSpline = Context->HitData.Rail->GetClosestDistanceOnSpline(Context->HitData.HitResult.ImpactPoint);
+	Context->SplineDistance = Context->HitData.Rail->GetClosestDistanceOnSpline(Context->HitData.HitResult.ImpactPoint);
 }
 
 void URailGrindGrindingState::LaunchCharacterOffRail() const
@@ -67,10 +48,10 @@ void URailGrindGrindingState::LaunchCharacterOffRail() const
 	const URailGrinder* Grinder = Context->RailGrinder;
 
 	FVector SplineTangent = Context->HitData.Rail->GetSplineComponent()
-	                               ->GetTangentAtDistanceAlongSpline(DistanceAlongSpline, ESplineCoordinateSpace::World)
+	                               ->GetTangentAtDistanceAlongSpline(Context->SplineDistance, ESplineCoordinateSpace::World)
 	                               .GetSafeNormal();
 
-	if (Context->bIsGoingReverse)
+	if (Context->HitData.bIsGoingReverse)
 		SplineTangent = -SplineTangent;
 
 	const FVector CurrentVelocity = Context->MovementComponent->Velocity;
@@ -87,13 +68,13 @@ bool URailGrindGrindingState::HasReachedEndOfRail() const
 	const URailGrindContext* Context = GetRailGrindContext();
 	const USplineComponent* Spline = Context->HitData.Rail->GetSplineComponent();
 
-	if (!Context->bIsGoingReverse)
+	if (!Context->HitData.bIsGoingReverse)
 	{
 		const float SplineLength = Spline->GetSplineLength();
-		return FMath::IsNearlyEqual(DistanceAlongSpline, SplineLength, GetDetachDistance());
+		return FMath::IsNearlyEqual(Context->SplineDistance, SplineLength, GetDetachDistance());
 	}
 
-	return FMath::IsNearlyEqual(DistanceAlongSpline, 0.f, GetDetachDistance());
+	return FMath::IsNearlyEqual(Context->SplineDistance, 0.f, GetDetachDistance());
 }
 
 float URailGrindGrindingState::GetDetachDistance() const

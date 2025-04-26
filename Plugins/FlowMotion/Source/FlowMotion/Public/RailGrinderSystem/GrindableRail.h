@@ -15,6 +15,8 @@ class FLOWMOTION_API UGrindableRail : public UActorComponent
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind")
 	bool bIsEnabled = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind")
+	bool bCanGoReverse = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rail Grind", meta = (EditCondition = "bOverrideRailOffset"))
 	float RailOffsetOverride = 125.f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rail Grind", meta = (EditCondition = "bOverrideSpeed"))

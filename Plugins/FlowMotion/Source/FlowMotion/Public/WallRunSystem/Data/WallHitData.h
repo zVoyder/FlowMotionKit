@@ -22,6 +22,13 @@ struct FLOWMOTION_API FWallHitData
 	                bIsOnRight(false)
 	{
 	}
+
+	FWallHitData(const FHitResult& InHitResult, URunnableWall* InWall, bool bInIsOnRight)
+		: HitResult(InHitResult),
+		  Wall(InWall),
+		  bIsOnRight(bInIsOnRight)
+	{
+	}
 	
 	FWallHitData(const FWallHitData& Other)
 		: HitResult(Other.HitResult),

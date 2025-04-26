@@ -16,7 +16,7 @@ void URailGrindCheckState::OnProcess(float DeltaTime)
 	
 	URailGrindContext* Context = GetRailGrindContext();
 	if (Context->RailGrinder->TryGetMostValidRailHit(Context->HitData))
-		TransitionTo(RailGrindGrindingStateName);
+		TransitionTo(RailGrindAttachmentStateName);
 }
 
 void URailGrindCheckState::OnExit()

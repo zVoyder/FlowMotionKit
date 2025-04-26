@@ -4,6 +4,7 @@
 #include "FlowMotion.h"
 #include "Factories/FlowMotionFactory.h"
 #include "RailGrinderSystem/GrindableRail.h"
+#include "RailGrinderSystem/Machine/States/RailGrindAttachmentState.h"
 #include "RailGrinderSystem/Machine/States/RailGrindCheckState.h"
 #include "RailGrinderSystem/Machine/States/RailGrindGrindingState.h"
 #include "RailGrinderSystem/Machine/States/RailGrindStartingState.h"
@@ -55,38 +56,40 @@ bool URailGrinder::IsRailGrinding() const
 {
 	if (!IsValid(MotionMachine))
 		return false;
-	
-	return MotionMachine->IsStateActive(RailGrindGrindingStateName);
+
+	return
+		MotionMachine->IsStateActive(RailGrindGrindingStateName) ||
+		MotionMachine->IsStateActive(RailGrindAttachmentStateName);
 }
 
-void URailGrinder::MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData, bool& bIsGoingReverse)
+void URailGrinder::MoveAndRotateCharacterAlongRail(float DeltaTime, float& CurrentSplineDistance, const FRailHitData& RailHitData)
 {
 	if (!RailHitData.IsRailHitValid() || !Owner)
 		return;
-	
+
 	const USplineComponent* Spline = RailHitData.Rail->GetSplineComponent();
 	if (!IsValid(Spline))
 	{
 		UE_LOG(LogFlowMotion, Error, TEXT("URailGrinder::MoveAndRotateCharacterAlongRail: Spline is not valid."));
 		return;
 	}
-	
-	CurrentSplineDistance += GetRailSpeed(RailHitData.Rail) * GetSmoothedDeltaTime() * (bIsGoingReverse ? -1.f : 1.f);
+
+	CurrentSplineDistance += GetRailSpeed(RailHitData.Rail) * GetSmoothedDeltaTime() * (RailHitData.bIsGoingReverse ? -1.f : 1.f);
 	const float SplineLength = Spline->GetSplineLength();
 	CurrentSplineDistance = FMath::Clamp(CurrentSplineDistance, 0.f, SplineLength);
-	
+
 	const FVector NextLocation = Spline->GetLocationAtDistanceAlongSpline(CurrentSplineDistance, ESplineCoordinateSpace::World);
 	const FVector Offset = Owner->GetActorUpVector() * GetRailOffset(RailHitData.Rail);
 	const FVector TargetLocation = NextLocation + Offset;
-	
+
 	FRotator TargetRotation = Spline->GetRotationAtDistanceAlongSpline(CurrentSplineDistance, ESplineCoordinateSpace::World);
-	if (bIsGoingReverse)
+	if (RailHitData.bIsGoingReverse)
 	{
 		TargetRotation.Yaw += 180.f;
 		TargetRotation.Pitch *= -1.f;
 		TargetRotation.Roll *= -1.f;
 	}
-	
+
 	Owner->SetActorRotation(TargetRotation);
 	Owner->SetActorLocation(TargetLocation, false, nullptr);
 }
@@ -107,18 +110,39 @@ bool URailGrinder::TryGetMostValidRailHit(FRailHitData& OutRailHitData) const
 		UGrindableRail* Rail = HitPair.Key;
 		const FHitResult& HitResult = HitPair.Value;
 		
+		const FVector ForwardVector = Owner->GetActorForwardVector();
+		const FVector SplineTangent = Rail->GetSplineComponent()->GetTangentAtDistanceAlongSpline(
+			Rail->GetClosestDistanceOnSpline(HitResult.ImpactPoint),
+			ESplineCoordinateSpace::World
+		).GetSafeNormal();
+
+		const bool IsGoingReverse = FVector::DotProduct(ForwardVector, SplineTangent) < 0;
+		const FRailHitData HitData = FRailHitData(HitResult, Rail, IsGoingReverse);
+
+		if (IsGoingReverse && !Rail->bCanGoReverse)
+			continue;
+
 		const FVector& ImpactNormal = HitResult.ImpactNormal;
 		const float Dot = FVector::DotProduct(PlayerUp.GetSafeNormal(), -ImpactNormal.GetSafeNormal());
 		const float AngleDegrees = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Dot, -1.0f, 1.0f)));
-		
+
+		const float SplineDistance = Rail->GetClosestDistanceOnSpline(HitResult.ImpactPoint);
+		const USplineComponent* Spline = Rail->GetSplineComponent();
+
+		FRotator SplineRotation = Spline->GetRotationAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
+		const FVector SplineUp = SplineRotation.RotateVector(FVector::UpVector);
+		const float RailUpAngle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(PlayerUp.GetSafeNormal(), SplineUp.GetSafeNormal())));
+
+		if (RailUpAngle > MaxSplineAngleDifference)
+			continue;
+
 		const float Distance = FVector::Dist(PlayerLocation, HitResult.ImpactPoint);
 		const float Score = Distance * DistanceWeight + AngleDegrees * AngleWeight; // Score: lower is better
 
 		if (Score < BestScore)
 		{
 			BestScore = Score;
-			OutRailHitData.HitResult = HitResult;
-			OutRailHitData.Rail = Rail;
+			OutRailHitData = HitData;
 		}
 	}
 
@@ -196,7 +220,7 @@ TMap<UGrindableRail*, FHitResult> URailGrinder::GetRailsHitsMap() const
 			UGrindableRail* Rail = HitResult.GetActor()->FindComponentByClass<UGrindableRail>();
 			if (!IsValid(Rail) || !Rail->bIsEnabled)
 				continue;
-			
+
 			HitsMap.Add(Rail, HitResult);
 
 #if WITH_EDITORONLY_DATA
@@ -224,7 +248,7 @@ float URailGrinder::GetRailSpeed(const UGrindableRail* Rail) const
 {
 	if (!IsValid(Rail) || !Rail->bIsEnabled || !Rail->HasRailSpeedOverride())
 		return DefaultRailSpeed;
-	
+
 	return Rail->RailSpeedOverride;
 }
 
@@ -232,7 +256,7 @@ float URailGrinder::GetRailOffset(const UGrindableRail* Rail) const
 {
 	if (!IsValid(Rail) || !Rail->bIsEnabled || !Rail->HasRailOffsetOverride())
 		return DefaultRailOffset;
-	
+
 	return Rail->RailOffsetOverride;
 }
 
@@ -279,7 +303,7 @@ void URailGrinder::BeginPlay()
 float URailGrinder::GetSmoothedDeltaTime()
 {
 	const float DeltaTime = GetWorld()->GetDeltaSeconds();
-	
+
 	if (SmoothedDeltaTime < 0.f)
 		SmoothedDeltaTime = DeltaTime;
 	else
@@ -319,7 +343,12 @@ void URailGrinder::SetupMachine()
 		this,
 		URailGrindCheckState::StaticClass()
 	);
-	
+
+	UMotionState* AttachmentState = UFlowMotionFactory::CreateMotionState(
+		this,
+		URailGrindAttachmentState::StaticClass()
+	);
+
 	UMotionState* GrindingState = UFlowMotionFactory::CreateMotionState(
 		this,
 		URailGrindGrindingState::StaticClass()
@@ -327,6 +356,7 @@ void URailGrinder::SetupMachine()
 
 	MotionMachine->AddState(RailGrindStartingStateName, StartingState);
 	MotionMachine->AddState(RailGrindCheckStateName, CheckState);
+	MotionMachine->AddState(RailGrindAttachmentStateName, AttachmentState);
 	MotionMachine->AddState(RailGrindGrindingStateName, GrindingState);
 }
 
