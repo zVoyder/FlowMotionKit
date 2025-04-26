@@ -7,10 +7,10 @@
 ## Preview
 
 ### Wall Run
-https://github.com/user-attachments/assets/f7e39457-4b08-485d-a1fe-e110fd2a29b2
+https://github.com/user-attachments/assets/dd5eb823-53cf-4e54-ba0c-258f7810f016
 
 ### Rail Grind
-https://github.com/user-attachments/assets/be905a39-0d10-4d6d-8a28-af24665c0727
+https://github.com/user-attachments/assets/e0e1001a-f905-4012-b0ff-06174b815c1a
 
 ---
 
@@ -78,6 +78,9 @@ Supports dynamic rail grinding on spline-based paths, with customizable speed an
 
 ##### Movement
 - `DefaultRailSpeed`: Base movement speed along rail (default: `500.f`).
+
+##### Constraints
+- `MaxSplineAngleDifference`: Max vertical deviation allowed (0–90°).
 
 ##### Launch Settings
 - `HorizontalLaunchForce`: Horizontal force when leaving rail (default: `800.f`).
